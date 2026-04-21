@@ -1,0 +1,190 @@
+﻿/* --- BIẾN TOÀN CỤC --- */
+:root {
+    --mw-red: #8B0000;
+    --mw-gold: #c6a664;
+    --mw-dark: #1a1a1a;
+    --mw-light: #fdfaf5;
+    --admin-bg: #1a1c1e;
+    --admin-main: #f8f9fc;
+}
+
+body {
+    background-color: var(--mw-light);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* --- NAVBAR KHÁCH HÀNG --- */
+.navbar-mw {
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 10px 0;
+}
+
+.nav-link-custom {
+    color: var(--mw-dark) !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0 15px;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+    .nav-link-custom:hover {
+        color: var(--mw-red) !important;
+    }
+
+.btn-reserve {
+    background-color: var(--mw-red);
+    color: white !important;
+    border-radius: 50px;
+    padding: 8px 25px;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+    .btn-reserve:hover {
+        background-color: #5a0000;
+        transform: scale(1.05);
+    }
+
+/* --- BIỂU TƯỢNG GIỎ HÀNG --- */
+.cart-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-right: 20px;
+    color: var(--mw-dark);
+    font-size: 1.6rem;
+    transition: 0.3s;
+}
+
+    .cart-wrapper:hover {
+        color: var(--mw-red);
+    }
+
+#cart-badge-nav {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    background-color: var(--mw-red);
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    border: 2px solid #fff;
+}
+
+/* --- SIDEBAR ADMIN --- */
+.admin-sidebar {
+    width: 260px;
+    background: var(--admin-bg);
+    min-height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1031;
+    padding-top: 20px;
+}
+
+.admin-main-content {
+    margin-left: 260px;
+    padding: 25px;
+    background-color: var(--admin-main);
+    min-height: 100vh;
+}
+
+/* Nhãn danh mục trong Sidebar */
+.nav-category {
+    color: #6c757d;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    padding: 15px 15px 5px;
+    letter-spacing: 1px;
+}
+
+.custom-sidebar-nav .nav-link {
+    color: #adb5bd;
+    padding: 12px 20px;
+    margin-bottom: 5px;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+    .custom-sidebar-nav .nav-link i {
+        margin-right: 10px;
+        font-size: 1.1rem;
+    }
+
+    .custom-sidebar-nav .nav-link:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.05);
+    }
+
+    .custom-sidebar-nav .nav-link.active {
+        color: #fff;
+        background-color: var(--mw-red) !important;
+        box-shadow: 0 4px 12px rgba(139, 0, 0, 0.2);
+    }
+
+/* Header nội dung Admin */
+.admin-header {
+    background: #fff;
+    padding: 15px 30px;
+    border-bottom: 1px solid #dee2e6;
+    margin: -25px -25px 25px -25px; /* Tràn lề để khớp với container */
+}
+
+/* Sơ đồ bàn (CSS bổ sung từ yêu cầu trước của bạn) */
+/* --- CSS CHO SƠ ĐỒ BÀN (ADMIN) --- */
+.table-card {
+    transition: all 0.3s ease;
+    border-radius: 15px;
+    border: 1px solid #eee;
+    min-height: 180px; /* Đảm bảo các ô cao bằng nhau */
+}
+
+/* Màu cho bàn trống (Màu xanh) */
+.table-empty {
+    background-color: #ebfbee !important;
+    border-left: 5px solid #28a745 !important;
+}
+
+    .table-empty .status-label {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+/* Màu cho bàn đang có khách (Màu đỏ) */
+.table-occupied {
+    background-color: #fff5f5 !important;
+    border-left: 5px solid #dc3545 !important;
+}
+
+    .table-occupied .status-label {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+/* Màu cho bàn đặt trước (Màu vàng) */
+.table-reserved {
+    background-color: #fff9db !important;
+    border-left: 5px solid #ffc107 !important;
+}
+
+    .table-reserved .status-label {
+        color: #f08c00;
+        font-weight: bold;
+    }
+
+/* QR Code Container */
+.qr-container {
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #ccc;
+}

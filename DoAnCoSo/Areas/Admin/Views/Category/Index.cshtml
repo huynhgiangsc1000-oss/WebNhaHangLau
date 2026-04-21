@@ -1,0 +1,86 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Category>
+
+@{
+    ViewData["Title"] = "Quản lý danh mục";
+}
+
+<div class="container-fluid pt-4">
+    <div class="card shadow-sm border-0" style="border-radius: 12px;">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="m-0 fw-bold text-danger"><i class="bi bi-list-ul me-2"></i>PHÂN CẤP THỰC ĐƠN</h5>
+            <a asp-action="Create" class="btn btn-danger btn-sm shadow-sm">
+                <i class="bi bi-plus-lg"></i> Thêm danh mục mới
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40%">Tên loại món</th>
+                            <th style="width: 25%">Thuộc nhóm</th>
+                            <th class="text-center" style="width: 15%">Số lượng món</th>
+                            <th class="text-end" style="width: 20%">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @if (item.ParentId == null)
+                                    {
+                                        <span class="fw-bold text-uppercase text-dark">
+                                            <i class="bi bi-folder2-open me-1"></i> @item.CategoryName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="ps-4 text-secondary">
+                                            <i class="bi bi-arrow-return-right me-1 text-muted"></i> @item.CategoryName
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.ParentCategory != null)
+                                    {
+                                        <span class="badge bg-light text-dark border">
+                                            @item.ParentCategory.CategoryName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small"><em>(Nhóm gốc)</em></span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge rounded-pill bg-info text-dark">
+                                        @(item.Products?.Count ?? 0) món
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <a asp-action="Edit" asp-route-id="@item.CategoryId"
+                                           class="btn btn-sm btn-outline-primary" title="Chỉnh sửa">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.CategoryId"
+                                           class="btn btn-sm btn-outline-danger" title="Xóa">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">Chưa có danh mục nào được tạo.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

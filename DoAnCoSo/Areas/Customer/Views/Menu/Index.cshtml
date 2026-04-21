@@ -1,0 +1,80 @@
+﻿@using Microsoft.AspNetCore.Http
+@model IEnumerable<DoAnCoSo.Models.Product>
+@{
+    var categories = ViewBag.Categories as List<DoAnCoSo.Models.Category> ?? new List<DoAnCoSo.Models.Category>();
+    int? selectedId = ViewBag.SelectedId as int?;
+    var currentTable = ViewBag.CurrentTable as DoAnCoSo.Models.Table;
+    int? currentTableId = currentTable?.TableId;
+}
+
+<div class="container-fluid bg-light py-4">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                    <div class="bg-danger text-white p-3 fw-bold">
+                        <i class="bi bi-list-ul me-2"></i> THỰC ĐƠN
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a asp-action="Index" asp-route-tableId="@currentTableId"
+                           class="list-group-item list-group-item-action py-3 @(selectedId == null ? "bg-danger text-white border-danger" : "")">
+                            Tất cả thực đơn
+                        </a>
+
+                        @foreach (var parent in categories.Where(c => c.ParentId == null))
+                        {
+                            var isOpen = (selectedId == parent.CategoryId || categories.Any(s => s.ParentId == parent.CategoryId && s.CategoryId == selectedId));
+
+                            <a asp-action="Index" asp-route-categoryId="@parent.CategoryId" asp-route-tableId="@currentTableId"
+                               class="list-group-item list-group-item-action fw-bold py-3 @(isOpen ? "text-danger bg-light" : "")">
+                                @parent.CategoryName.ToUpper()
+                                <i class="bi bi-chevron-@(isOpen ? "down" : "right") float-end small mt-1"></i>
+                            </a>
+
+                            @if (isOpen)
+                            {
+                                <div class="bg-white border-start border-danger border-3">
+                                    @foreach (var sub in categories.Where(c => c.ParentId == parent.CategoryId))
+                                    {
+                                        <a asp-action="Index" asp-route-categoryId="@sub.CategoryId" asp-route-tableId="@currentTableId"
+                                           class="list-group-item list-group-item-action ps-5 py-2 border-0 @(selectedId == sub.CategoryId ? "text-danger fw-bold bg-light" : "text-secondary")">
+                                            <i class="bi bi-caret-right-fill me-1 small"></i> @sub.CategoryName
+                                        </a>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                @if (currentTable != null)
+                {
+                    <div class="alert alert-info border-0 shadow-sm mb-4">
+                        <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                        Quý khách đang ngồi tại bàn: <strong>@currentTable.TableName</strong>
+                    </div>
+                }
+
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    @foreach (var item in Model)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm border-0 product-card rounded-3" onclick="openDetail(@item.ProductId)" style="cursor:pointer">
+                                <div class="position-relative overflow-hidden" style="height: 200px;">
+                                    <img src="~/images/@item.ImagePath" class="card-img-top h-100 w-100" style="object-fit: cover;" onerror="this.src='/images/no-image.png'">
+                                </div>
+                                <div class="card-body text-center p-3">
+                                    <h6 class="fw-bold text-dark text-truncate">@item.ProductName</h6>
+                                    <p class="text-danger fw-bold">@item.Price.ToString("N0") đ</p>
+                                    <button class="btn btn-outline-danger btn-sm rounded-pill w-100 fw-bold">CHỌN MÓN</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

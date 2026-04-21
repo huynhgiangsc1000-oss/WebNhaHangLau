@@ -1,0 +1,174 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Table>
+
+@{
+    ViewData["Title"] = "Sơ đồ nhà hàng";
+}
+
+<div class="container-fluid shadow-sm p-4 bg-white rounded">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-grid-3x3-gap me-2"></i>Sơ đồ nhà hàng</h4>
+            <p class="text-muted small mb-0">Quản lý trạng thái bàn và mã QR gọi món</p>
+        </div>
+        <a asp-area="Admin" asp-controller="Table" asp-action="Create" class="btn btn-danger shadow-sm rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i> Thêm bàn mới
+        </a>
+    </div>
+
+    <div class="d-flex gap-4 mb-4 pb-3 border-bottom">
+        <div class="d-flex align-items-center small">
+            <span class="badge bg-success me-2">&nbsp;</span> Bàn trống
+        </div>
+        <div class="d-flex align-items-center small">
+            <span class="badge bg-danger me-2">&nbsp;</span> Đang có khách/Chờ món
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
+        @foreach (var item in Model)
+        {
+            // Logic màu sắc: Busy, Occupied, Reserved...
+            bool isOccupied = (item.Status == "Busy" || item.Status == "Occupied");
+            string statusClass = isOccupied ? "table-occupied" : "table-empty";
+            string statusText = isOccupied ? "Đang có khách" : "Bàn trống";
+
+            <div class="col" id="table-card-@item.TableId">
+                <div class="card h-100 border-0 shadow-sm table-card @statusClass">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-tablet-landscape mb-2 fs-3"></i>
+                        <h5 class="fw-bold mb-1">@item.TableName</h5>
+                        <p class="small mb-3 status-label">@statusText</p>
+
+                        <div class="qr-wrapper mx-auto mb-3">
+                            <div class="qr-container bg-white p-2 rounded shadow-sm">
+                                @if (!string.IsNullOrEmpty(item.QrCode))
+                                {
+                                    <img src="@item.QrCode" class="img-fluid qr-img" alt="QR @item.TableName" />
+                                }
+                                else
+                                {
+                                    <div class="small text-muted d-flex align-items-center h-100 justify-content-center">No QR</div>
+                                }
+                            </div>
+                            <form asp-action="RefreshQRCode" asp-route-id="@item.TableId" method="post" class="refresh-qr-form">
+                                <button type="submit" class="btn-refresh-qr" title="Cập nhật lại link QR">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-2 mt-2">
+                            <a asp-action="Details" asp-route-id="@item.TableId"
+                               class="btn btn-sm btn-light rounded-circle border shadow-sm" title="In mã QR">
+                                <i class="bi bi-printer text-dark"></i>
+                            </a>
+
+                            @if (isOccupied)
+                            {
+                                <form asp-action="ResetTable" asp-route-id="@item.TableId" method="post">
+                                    <button type="submit" class="btn btn-sm btn-success rounded-circle shadow-sm"
+                                            title="Giải phóng bàn (Đưa về trống)"
+                                            onclick="return confirm('Xác nhận khách đã rời bàn và thanh toán?')">
+                                        <i class="bi bi-check2-all"></i>
+                                    </button>
+                                </form>
+                            }
+
+                            <a asp-action="Delete" asp-route-id="@item.TableId"
+                               class="btn btn-sm btn-outline-danger rounded-circle shadow-sm"
+                               title="Xóa bàn" onclick="return confirm('Bạn có chắc muốn xóa bàn này?')">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .table-card {
+        transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+        border: 2px solid transparent !important;
+        position: relative;
+    }
+
+        .table-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.12) !important;
+        }
+
+    /* QR Wrapper & Hover effect */
+    .qr-wrapper {
+        position: relative;
+        width: 110px;
+        height: 110px;
+    }
+
+    .qr-container {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .qr-img {
+        transition: transform 0.3s ease;
+    }
+
+    .qr-wrapper:hover .qr-img {
+        transform: scale(1.1);
+    }
+
+    .btn-refresh-qr {
+        position: absolute;
+        bottom: -5px;
+        right: -5px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        color: #6c757d;
+    }
+
+        .btn-refresh-qr:hover {
+            background: #f8f9fa;
+            color: #0d6efd;
+        }
+
+    /* Bàn trống - Màu xanh dịu */
+    .table-empty {
+        background-color: #f0fff4 !important;
+        border-color: #c6f6d5 !important;
+    }
+
+        .table-empty .status-label, .table-empty i.bi-tablet-landscape {
+            color: #38a169;
+            font-weight: 600;
+        }
+
+    /* Bàn đang có khách - Màu đỏ nhạt */
+    .table-occupied {
+        background-color: #fff5f5 !important;
+        border-color: #feb2b2 !important;
+    }
+
+        .table-occupied .status-label, .table-occupied i.bi-tablet-landscape {
+            color: #e53e3e;
+            font-weight: 600;
+        }
+
+    .btn-sm.rounded-circle {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>

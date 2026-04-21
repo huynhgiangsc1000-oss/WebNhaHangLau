@@ -1,0 +1,62 @@
+﻿@model DoAnCoSo.Models.Order
+
+<div class="modal fade" id="orderDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Chi tiết đơn hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row">
+                    <div class="col-md-5 border-end">
+                        <div class="mb-3">
+                            <label class="text-muted small d-block">ID Đơn:</label>
+                            <input type="text" class="form-control bg-light" value="@Model.OrderId" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small d-block">Bàn:</label>
+                            <input type="text" class="form-control bg-light" value="Bàn @Model.TableId" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small d-block">Tổng tiền:</label>
+                            <input type="text" class="form-control bg-light fw-bold text-danger" value="@Model.TotalAmount.ToString("N0")" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small d-block">Ngày giờ đặt:</label>
+                            <input type="text" class="form-control bg-light" value="@Model.OrderDate.ToString("yyyy-MM-dd HH:mm:ss")" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small d-block">Trạng thái:</label>
+                            <select class="form-select border-primary" id="statusSelect">
+                                <option value="Pending" selected="@(Model.Status == "Pending")">Đã tiếp nhận</option>
+                                <option value="Processing" selected="@(Model.Status == "Processing")">Đang chế biến</option>
+                                <option value="Completed" selected="@(Model.Status == "Completed")">Hoàn Thành</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-7 ps-md-4">
+                        <h6 class="fw-bold mb-3">Chi tiết món ăn</h6>
+                        <div class="border rounded p-3 bg-light" style="min-height: 300px; border-style: dashed !important;">
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var detail in Model.OrderDetails)
+                                {
+                                    <li class="mb-2 border-bottom pb-2">
+                                        <span class="fw-bold">@detail.Product.ProductName</span>
+                                        <span class="float-end">- Số lượng: @detail.Quantity</span>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary px-5 rounded-pill" onclick="updateStatus(@Model.OrderId)">
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

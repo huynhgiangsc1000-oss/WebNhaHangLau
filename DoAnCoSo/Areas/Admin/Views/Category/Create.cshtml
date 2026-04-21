@@ -1,0 +1,26 @@
+﻿@model DoAnCoSo.Models.Category
+
+<div class="container mt-4">
+    <div class="card border-0 shadow-sm mx-auto" style="max-width: 500px; border-radius: 15px;">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-4">THÊM LOẠI MÓN</h5>
+            <form asp-action="Create">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Tên loại (Bò, Hải sản, Combo...)</label>
+                    <input asp-for="CategoryName" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Thuộc nhóm gốc</label>
+                    <select asp-for="ParentId" class="form-select" asp-items="ViewBag.ParentId">
+                        <option value="">-- Để trống nếu là Món Lẻ/Set Menu --</option>
+                    </select>
+                    <div class="form-text mt-1 text-info italic">Chọn "Món Lẻ" nếu đây là danh mục con của thực đơn lẻ.</div>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="btn btn-danger w-100 mb-2">LƯU DỮ LIỆU</button>
+                    <a asp-action="Index" class="btn btn-light w-100">Quay lại</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,98 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Order>
+
+@{
+    ViewData["Title"] = "Lịch sử đặt món";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <i class="bi bi-clock-history text-danger"></i> Lịch sử đặt món
+        </h2>
+        <span class="badge bg-secondary p-2">
+            Bàn: @Context.Session.GetString("TableId")
+        </span>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row">
+            @foreach (var order in Model.OrderByDescending(o => o.OrderDate))
+            {
+                <div class="col-12 mb-3">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <h5 class="mb-1 fw-bold text-primary">Đơn hàng #@order.OrderId</h5>
+                                    <p class="text-muted small mb-0">
+                                        <i class="bi bi-calendar3"></i> @order.OrderDate.ToString("dd/MM/yyyy HH:mm")
+                                    </p>
+                                </div>
+
+                                <div class="col-md-3 text-center">
+                                    @{
+                                        var statusClass = order.Status switch
+                                        {
+                                            "Pending" => "bg-warning text-dark",
+                                            "Confirmed" => "bg-info text-white",
+                                            "Processing" => "bg-primary text-white",
+                                            "Completed" => "bg-success text-white",
+                                            _ => "bg-secondary text-white"
+                                        };
+                                        var statusText = order.Status switch
+                                        {
+                                            "Pending" => "Đang chờ",
+                                            "Confirmed" => "Đã xác nhận",
+                                            "Processing" => "Đang chế biến",
+                                            "Completed" => "Hoàn thành",
+                                            _ => order.Status
+                                        };
+                                    }
+                                    <span class="badge @statusClass px-3 py-2 rounded-pill">
+                                        @statusText
+                                    </span>
+                                </div>
+
+                                <div class="col-md-3 text-end">
+                                    <span class="text-muted small d-block">Tổng thanh toán:</span>
+                                    <span class="fw-bold text-danger h5">@order.TotalAmount.ToString("N0") VND</span>
+                                </div>
+
+                                <div class="col-md-3 text-end">
+                                    <a asp-action="OrderDetails" asp-route-id="@order.OrderId"
+                                       class="btn btn-outline-dark rounded-pill px-4">
+                                        Chi tiết <i class="bi bi-arrow-right-short"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5 shadow-sm bg-white rounded">
+            <i class="bi bi-journal-x display-1 text-muted opacity-25"></i>
+            <p class="h4 text-muted mt-3">Bạn chưa có đơn hàng nào tại bàn này!</p>
+            <a href="@Url.Action("Index", "Menu")" class="btn btn-danger mt-3 px-4 py-2 rounded-pill shadow">
+                Đến thực đơn chọn món ngay
+            </a>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        .card {
+            transition: transform 0.2s;
+        }
+
+            .card:hover {
+                transform: translateY(-2px);
+            }
+    </style>
+}

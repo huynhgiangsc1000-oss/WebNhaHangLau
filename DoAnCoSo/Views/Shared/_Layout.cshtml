@@ -1,0 +1,277 @@
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 江安火锅 Manwah Admin</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Styles", required: false)
+
+    <style>
+        /* Đảm bảo layout Admin luôn chiếm hết chiều cao màn hình */
+        .admin-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .admin-sidebar {
+            width: 260px;
+            background: #1a1a1a;
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .admin-main-content {
+            flex: 1;
+            margin-left: 260px;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .admin-header {
+            background: white;
+            padding: 15px 30px;
+            border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        .nav-category {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6c757d;
+            padding: 20px 15px 10px;
+            font-weight: bold;
+        }
+
+        .custom-sidebar-nav .nav-link {
+            color: #adb5bd;
+            padding: 10px 20px;
+            margin-bottom: 5px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+        }
+
+            .custom-sidebar-nav .nav-link i {
+                margin-right: 12px;
+                font-size: 1.2rem;
+            }
+
+            .custom-sidebar-nav .nav-link:hover {
+                background: rgba(255,255,255,0.1);
+                color: white;
+            }
+
+            .custom-sidebar-nav .nav-link.active {
+                background: #dc3545;
+                color: white;
+            }
+
+        footer.admin-footer {
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    @{
+        bool isAdminArea = ViewContext.RouteData.Values["area"]?.ToString() == "Admin";
+        // Lấy tên bàn từ Session (Bạn cần đảm bảo trong Controller đã lưu HttpContext.Session.SetString("TableName", table.TableName))
+        var tableName = HttpContextAccessor.HttpContext.Session.GetString("TableName");
+    }
+
+    @if (isAdminArea)
+    {
+        <div class="admin-wrapper">
+            <div class="admin-sidebar shadow-lg">
+                <div class="sidebar-header text-center py-4 border-bottom border-secondary">
+                    <h5 class="brand-name mb-0 text-white">MANWAH <span class="text-danger">ADMIN</span></h5>
+                </div>
+
+                <nav class="nav flex-column px-3 custom-sidebar-nav">
+                    <div class="nav-category">Hệ thống</div>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")"
+                       asp-area="Admin" asp-controller="Home" asp-action="Index">
+                        <i class="bi bi-grid-1x2-fill"></i><span>Trang Chủ</span>
+                    </a>
+
+                    <div class="nav-category">Nghiệp vụ</div>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "Order" ? "active" : "")"
+                       asp-area="Admin" asp-controller="Order" asp-action="Index">
+                        <i class="bi bi-receipt"></i><span>Đơn hàng</span>
+                    </a>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "Table" ? "active" : "")"
+                       asp-area="Admin" asp-controller="Table" asp-action="Index">
+                        <i class="bi bi-layout-text-window-reverse"></i><span>Quản lý bàn</span>
+                    </a>
+
+                    <div class="nav-category">Thực đơn</div>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "Product" ? "active" : "")"
+                       asp-area="Admin" asp-controller="Product" asp-action="Index">
+                        <i class="bi bi-egg-fried"></i><span>Món ăn</span>
+                    </a>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "Category" ? "active" : "")"
+                       asp-area="Admin" asp-controller="Category" asp-action="Index">
+                        <i class="bi bi-tags"></i><span>Loại món</span>
+                    </a>
+
+                    <div class="nav-category">Nhân sự & Khách hàng</div>
+                    <a class="nav-link rounded-pill" href="#"><i class="bi bi-people"></i><span>Khách hàng</span></a>
+                    <a class="nav-link rounded-pill" href="#"><i class="bi bi-person-badge"></i><span>Nhân viên</span></a>
+                    <a class="nav-link rounded-pill" href="#"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a>
+
+                    <div class="nav-category">Kho & Đối tác</div>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "Supplier" ? "active" : "")"
+                       asp-area="Admin" asp-controller="Supplier" asp-action="Index">
+                        <i class="bi bi-truck"></i><span>Nhà cung cấp</span>
+                    </a>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "ImportInvoice" ? "active" : "")"
+                       asp-area="Admin" asp-controller="ImportInvoice" asp-action="Index">
+                        <i class="bi bi-box-seam"></i><span>Nhập kho</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="admin-main-content">
+                <header class="admin-header d-flex justify-content-between align-items-center">
+                    <div class="page-title">
+                        <h4 class="mb-0 fw-bold">Trang Quản Trị Hệ Thống</h4>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-0">
+                                <li class="breadcrumb-item small">Admin</li>
+                                <li class="breadcrumb-item small active">@ViewContext.RouteData.Values["controller"]</li>
+                            </ol>
+                        </nav>
+                    </div>
+
+                    <div class="user-profile dropdown">
+                        <div class="d-flex align-items-center shadow-sm p-2 rounded-pill bg-white px-3 border"
+                             data-bs-toggle="dropdown" style="cursor: pointer;">
+                            <div class="text-end me-3 d-none d-sm-block">
+                                <div class="fw-bold small text-dark">@User.Identity.Name</div>
+                                <div class="text-muted" style="font-size: 0.7rem;">Quản trị viên</div>
+                            </div>
+                            <div class="bg-danger rounded-circle p-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px;">
+                                <i class="bi bi-person text-white"></i>
+                            </div>
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow mt-2">
+                            <li><a class="dropdown-item py-2" href="#"><i class="bi bi-person me-2"></i>Hồ sơ</a></li>
+                            <li><a class="dropdown-item py-2" asp-area="Customer" asp-controller="Home" asp-action="Index"><i class="bi bi-shop me-2"></i>Xem trang chủ</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item py-2 text-danger" asp-area="Customer" asp-controller="Account" asp-action="Logout">
+                                    <i class="bi bi-power me-2"></i>Đăng xuất
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </header>
+
+                <div class="p-4">
+                    @RenderBody()
+                </div>
+
+                <footer class="admin-footer py-3 text-center bg-white border-top mt-auto">
+                    <p class="mb-0 text-muted small">&copy; 2026 江安火锅 Manwah Taiwanese Hotpot - Admin Dashboard</p>
+                </footer>
+            </div>
+        </div>
+    }
+    else
+    {
+        <nav class="navbar navbar-expand-lg navbar-mw sticky-top">
+            <div class="container">
+                <a class="navbar-brand" asp-area="Customer" asp-controller="Home" asp-action="Index">
+                    <img src="~/images/Logo.png" alt="Logo" style="height: 60px;" asp-append-version="true">
+                </a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mwNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="mwNav">
+                    <ul class="navbar-nav mx-auto">
+                        <li class="nav-item"><a class="nav-link-custom" asp-area="Customer" asp-controller="Menu" asp-action="Index">Thực đơn</a></li>
+                        <li class="nav-item"><a class="nav-link-custom" asp-area="Customer" asp-controller="Table" asp-action="Index">Sơ đồ bàn</a></li>
+                        <li class="nav-item"><a class="nav-link-custom" href="#">Khuyến mãi</a></li>
+                    </ul>
+
+                    <div class="d-flex align-items-center">
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <a asp-area="Customer" asp-controller="Order" asp-action="History" class="cart-wrapper text-decoration-none me-3" title="Lịch sử đặt món">
+                                <i class="bi bi-journal-text"></i>
+                            </a>
+
+                            <div class="me-3 text-end">
+                                <span class="fw-bold d-block small">Hi, @User.Identity.Name</span>
+                                @if (!string.IsNullOrEmpty(tableName))
+                                {
+                                    /* Thay đổi ở đây: Hiển thị tableName thay vì tableId */
+                                    <span class="badge bg-danger text-uppercase">@tableName</span>
+                                }
+                            </div>
+                            <a class="nav-link-custom small mx-0" asp-area="Customer" asp-controller="Account" asp-action="Logout">Thoát</a>
+                        }
+                        else
+                        {
+                            <a class="nav-link-custom" asp-area="Customer" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+                        }
+
+                        <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="cart-wrapper text-decoration-none ms-2">
+                            <i class="bi bi-cart3"></i>
+                            <span id="cart-badge-nav" class="badge" style="display:none;">0</span>
+                        </a>
+
+                        <a asp-area="Customer" asp-controller="Table" asp-action="Index" class="btn btn-reserve ms-3">Đặt bàn</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main role="main">
+            @RenderBody()
+        </main>
+
+        <footer class="py-4 text-center mt-5 bg-dark text-white">
+            <p class="mb-0">&copy; 2026 江安火锅 Manwah Taiwanese Hotpot</p>
+        </footer>
+    }
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        $(document).ready(function () {
+            updateCartBadge();
+        });
+
+        function updateCartBadge() {
+            var url = '@Url.Action("GetCartCount", "Cart", new { area = "Customer" })';
+            $.get(url, function (count) {
+                if (count > 0) {
+                    $('#cart-badge-nav').text(count).fadeIn();
+                } else {
+                    $('#cart-badge-nav').hide();
+                }
+            });
+        }
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

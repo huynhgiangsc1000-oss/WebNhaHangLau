@@ -1,0 +1,186 @@
+﻿@{
+    ViewData["Title"] = "Bảng điều khiển";
+}
+
+<div class="container-fluid pt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-0">TRẠM QUẢN TRỊ MANWAH</h3>
+            <p class="text-muted small">Chào mừng trở lại, quản trị viên @User.Identity?.Name</p>
+        </div>
+        <div class="text-end">
+            <div class="badge bg-white text-dark shadow-sm p-2 border">
+                <i class="bi bi-clock-history me-2"></i>@DateTime.Now.ToString("HH:mm - dd/MM/yyyy")
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #2c3e50, #000000); border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small fw-bold text-uppercase opacity-75">Tổng thực đơn</div>
+                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalProducts</div>
+                        </div>
+                        <i class="bi bi-egg-fried fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #c0392b, #8b0000); border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small fw-bold text-uppercase opacity-75">Đơn hàng</div>
+                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalOrders</div>
+                        </div>
+                        <i class="bi bi-cart-check fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #27ae60, #1e8449); border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small fw-bold text-uppercase opacity-75">Doanh thu</div>
+                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalRevenue?.ToString("N0")</div>
+                        </div>
+                        <i class="bi bi-currency-dollar fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #f39c12, #d35400); border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small fw-bold text-uppercase opacity-75">Khách hàng</div>
+                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalUsers</div>
+                        </div>
+                        <i class="bi bi-people fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>BIỂU ĐỒ DOANH THU THEO THÁNG (@DateTime.Now.Year)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart" style="min-height: 350px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-danger"><i class="bi bi-bell-fill me-2"></i>DANH SÁCH ĐẶT BÀN MỚI NHẤT</h6>
+            <span class="badge bg-light text-dark border">Tất cả đơn hàng</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Mã Đơn</th>
+                            <th>Khách hàng</th>
+                            <th>Số điện thoại</th>
+                            <th>Thời gian đặt</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (ViewBag.RecentOrders != null && ViewBag.RecentOrders.Count > 0)
+                        {
+                            foreach (var order in ViewBag.RecentOrders)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold text-primary">#@order.OrderId</td>
+                                    <td>@(order.User?.FullName ?? "Khách vãng lai")</td>
+                                    <td>@(order.User?.PhoneNumber ?? "N/A")</td>
+                                    <td>@order.OrderDate.ToString("HH:mm dd/MM/yyyy")</td>
+                                    <td>
+                                        @if (order.Status == "Hoàn thành")
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success">Hoàn thành</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">Đang xử lý</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a asp-controller="Order" asp-action="Details" asp-route-id="@order.OrderId" class="btn btn-sm btn-dark rounded-pill">Chi tiết</a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">Chưa có dữ liệu đơn hàng nào được ghi nhận.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var ctx = document.getElementById('revenueChart').getContext('2d');
+            var revenueData = @Html.Raw(Json.Serialize(ViewBag.MonthlyRevenue));
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+                    datasets: [{
+                        label: 'Doanh thu (VNĐ)',
+                        data: revenueData,
+                        borderColor: '#c0392b',
+                        backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#c0392b',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN') + ' đ';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}

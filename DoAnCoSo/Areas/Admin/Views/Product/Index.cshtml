@@ -1,0 +1,46 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Product>
+
+<div class="container-fluid pt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="text-danger fw-bold m-0">DANH SÁCH MÓN ĂN</h5>
+            <a asp-action="Create" class="btn btn-danger btn-sm">Thêm món mới</a>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Hình ảnh</th>
+                        <th>Tên món</th>
+                        <th>Loại</th>
+                        <th>Giá bán</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <img src="~/images/@item.ImagePath" style="width:60px; height:60px; object-fit:cover; border-radius:8px;" />
+                            </td>
+                            <td class="fw-bold">@item.ProductName</td>
+                            <td>@item.Category?.CategoryName</td>
+                            <td class="text-danger">@item.Price.ToString("N0")đ</td>
+                            <td>
+                                <span class="badge @(item.IsAvailable ? "bg-success" : "bg-secondary")">
+                                    @(item.IsAvailable ? "Đang bán" : "Hết hàng")
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-primary">Sửa</a>
+                                <a asp-action="Delete" asp-route-id="@item.ProductId" onclick="return confirm('Xóa món này?')" class="btn btn-sm btn-outline-danger">Xóa</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

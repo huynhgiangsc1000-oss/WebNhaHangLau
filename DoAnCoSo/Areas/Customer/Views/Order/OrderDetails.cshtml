@@ -1,0 +1,98 @@
+﻿@model DoAnCoSo.Models.Order
+
+<div class="container mt-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <h3 class="mb-4 font-weight-bold">Chi tiết đơn hàng:</h3>
+
+            <div class="alert alert-primary mb-4">
+                Đơn hàng số: <strong>#@Model.OrderId</strong> -
+                Trạng thái: <span class="badge badge-info">@Model.Status</span>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <table class="table border">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Tên sản phẩm</th>
+                                <th class="text-center">Số lượng</th>
+                                <th class="text-right">Giá</th>
+                                <th class="text-right">Tổng tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.OrderDetails)
+                            {
+                                <tr>
+                                    <td class="font-weight-bold">@item.Product.ProductName</td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-right">@item.UnitPrice.ToString("N0") VND</td>
+                                    <td class="text-right font-weight-bold text-primary">
+                                        @((item.Quantity * item.UnitPrice).ToString("N0")) VND
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card bg-light border-0">
+                        <div class="card-body">
+                            <h4 class="text-center mb-4">Total</h4>
+                            <div class="text-center mb-4">
+                                <i class="fas fa-percentage fa-3x text-warning"></i>
+                            </div>
+
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Tổng tiền:</span>
+                                <span class="font-weight-bold">@Model.TotalAmount.ToString("N0") VND</span>
+                            </div>
+
+                            <div class="form-group mt-3">
+                                <label class="small font-weight-bold text-uppercase">Áp mã khuyến mãi</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" placeholder="Nhập mã ưu đãi...">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-dark">Áp dụng</button>
+                                    </div>
+                                </div>
+                                <small class="text-success mt-1 d-block italic">
+                                    <i class="fas fa-check-circle"></i> Bạn được giảm 10% với Hạng vàng
+                                </small>
+                            </div>
+
+                            <hr>
+
+                            <div class="d-flex justify-content-between h4">
+                                <span>Thành tiền:</span>
+                                <span class="text-danger font-weight-bold">
+                                    @((Model.TotalAmount * 0.9m).ToString("N0")) VND
+                                </span>
+                            </div>
+
+                            <div class="form-group mt-4">
+                                <label class="small font-weight-bold">Chọn phương thức thanh toán:</label>
+                                <select class="form-control">
+                                    <option>Tiền mặt</option>
+                                    <option>Thẻ ngân hàng</option>
+                                    <option>Momo / QR Pay</option>
+                                </select>
+                            </div>
+
+                            <div class="row no-gutters mt-4">
+                                <div class="col-6 pr-1">
+                                    <a href="/Customer/Menu" class="btn btn-outline-dark btn-block">Đặt thêm món</a>
+                                </div>
+                                <div class="col-6 pl-1">
+                                    <button class="btn btn-dark btn-block">Thanh toán</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,199 @@
+﻿@{
+    ViewData["Title"] = "Trang chủ - 江安火锅 ";
+}
+
+@section Styles {
+    <style>
+        /* 1. HERO CAROUSEL */
+        .hero-carousel .carousel-item {
+            height: 500px;
+        }
+
+        .hero-carousel img {
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.8);
+        }
+
+        .hero-caption {
+            position: absolute;
+            top: 50%;
+            left: 8%;
+            transform: translateY(-50%);
+            color: white;
+            max-width: 550px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+        }
+
+            .hero-caption h1 {
+                font-size: 3.5rem;
+                font-weight: 900;
+                line-height: 1.1;
+            }
+
+        /* 2. CATEGORY ICONS */
+        .cat-section {
+            padding: 40px 0;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cat-item {
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            text-decoration: none;
+            display: block;
+        }
+
+        .cat-circle {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            border: 2px solid transparent;
+        }
+
+        .cat-item:hover .cat-circle {
+            border-color: #8B0000;
+            transform: translateY(-5px);
+        }
+
+        .cat-item span {
+            font-weight: 700;
+            color: #444;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        /* 3. SPECIAL PROMO (Ảnh bay bổng) */
+        .special-promo {
+            background: linear-gradient(135deg, #8B0000 0%, #4a0000 100%);
+            height: 450px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            margin: 60px 0;
+            color: white;
+        }
+
+        .promo-content {
+            padding-left: 8%;
+            z-index: 10;
+            width: 45%;
+        }
+
+            .promo-content h2 {
+                font-size: 3.2rem;
+                font-weight: 900;
+                color: #c6a664;
+                line-height: 1.1;
+            }
+
+        /* FIX LỖI KEYFRAMES BẰNG @@ */
+        @@keyframes floatUpDown {
+            0%, 100% {
+                transform: translateY(0) rotate(0);
+            }
+
+            50% {
+                transform: translateY(-25px) rotate(2deg);
+            }
+        }
+
+        .floating-dish {
+            position: absolute;
+            right: 5%;
+            width: 500px;
+            filter: drop-shadow(0 30px 50px rgba(0,0,0,0.5));
+            animation: floatUpDown 6s ease-in-out infinite;
+            z-index: 5;
+        }
+
+        /* 4. SERVICE CARDS */
+        .service-card {
+            border: none;
+            border-radius: 0;
+            overflow: hidden;
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+
+            .service-card img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                transition: 0.6s;
+            }
+
+            .service-card:hover img {
+                transform: scale(1.1);
+            }
+
+        .service-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 25px;
+            color: white;
+        }
+    </style>
+}
+
+<div id="mwCarousel" class="carousel slide hero-carousel" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        <div class="carousel-item active">
+            <img src="https://images.unsplash.com/photo-1552611052-33e04de081de?q=80&w=1500" class="d-block w-100">
+            <div class="hero-caption">
+                <p class="text-uppercase fw-bold mb-1" style="color: #c6a664; letter-spacing: 2px;">Taiwanese Hotpot</p>
+                <h1>TINH HOA LẨU <br> ĐÀI LOAN</h1>
+                <button class="btn btn-danger rounded-0 px-4 mt-3 fw-bold">KHÁM PHÁ NGAY</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</section>
+
+<section class="special-promo shadow-lg">
+    <div class="promo-content">
+        <h5 class="fw-bold text-uppercase mb-2">Đặc sản Manwah</h5>
+        <h2>LẨU MALA <br> CAY TÊ ĐÚNG ĐIỆU</h2>
+        <p>Hòa quyện tinh hoa thảo mộc cùng vị cay nồng đặc trưng.</p>
+        <button class="btn btn-outline-warning rounded-0 fw-bold px-4 py-2">XEM THỰC ĐƠN</button>
+    </div>
+    <img src="/images/lauMaLa.png" class="floating-dish" alt="Nồi lẩu bay">
+</section>
+
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="service-card shadow">
+                <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800">
+                <div class="service-overlay">
+                    <h4 class="fw-bold border-bottom border-2 pb-2" style="width: fit-content;">KHÔNG GIAN SANG TRỌNG</h4>
+                    <p class="small mb-0">Hơi thở phố cổ Đài Loan trong lòng thành phố.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="service-card shadow">
+                <img src="https://images.unsplash.com/photo-1555126634-323283e090fa?q=80&w=800">
+                <div class="service-overlay">
+                    <h4 class="fw-bold border-bottom border-2 pb-2" style="width: fit-content;">DỊCH VỤ TẬN TÂM</h4>
+                    <p class="small mb-0">Trải nghiệm quầy buffet đồ uống và kem không giới hạn.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

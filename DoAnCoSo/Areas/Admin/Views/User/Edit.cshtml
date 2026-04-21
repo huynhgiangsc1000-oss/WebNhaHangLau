@@ -1,0 +1,41 @@
+﻿@model DoAnCoSo.Models.User
+
+<div class="container mt-4">
+    <div class="card border-0 shadow-sm mx-auto" style="max-width: 600px; border-radius: 15px;">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-4 text-primary">CẬP NHẬT THÔNG TIN KHÁCH HÀNG</h5>
+            <form asp-action="Edit">
+                <input type="hidden" asp-for="Id" />
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Họ và Tên</label>
+                    <input asp-for="FullName" class="form-control" required />
+                    <span asp-validation-for="FullName" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Số điện thoại</label>
+                    <input asp-for="PhoneNumber" class="form-control" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label small fw-bold">Điểm tích lũy</label>
+                        <input asp-for="Points" type="number" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label small fw-bold">Hạng thành viên</label>
+                        <select asp-for="RankId" class="form-select" asp-items="ViewBag.RankId">
+                            <option value="">-- Chọn hạng --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="btn btn-primary w-100 mb-2">LƯU THAY ĐỔI</button>
+                    <a asp-action="Index" class="btn btn-light w-100">Quay lại</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

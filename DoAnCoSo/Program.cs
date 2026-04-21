@@ -14,8 +14,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// --- 2. CẤU HÌNH IDENTITY ---
+// --- 2. CẤU HÌNH IDENTITY (Sử dụng User model tùy chỉnh của bạn) ---
 builder.Services.AddIdentity<User, IdentityRole<int>>(options => {
+    // Thiết lập mật khẩu đơn giản cho môi trường học tập
     options.SignIn.RequireConfirmedAccount = false;
     options.SignIn.RequireConfirmedEmail = false;
     options.Password.RequireDigit = false;
@@ -27,10 +28,10 @@ builder.Services.AddIdentity<User, IdentityRole<int>>(options => {
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// --- 3. CẤU HÌNH SESSION ---
+// --- 3. CẤU HÌNH SESSION (Dùng để lưu TableId và Giỏ hàng) ---
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options => {
-    options.IdleTimeout = TimeSpan.FromMinutes(60);
+    options.IdleTimeout = TimeSpan.FromHours(2); // Tăng lên 2 tiếng để khách ngồi ăn thoải mái
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = ".Manwah.Session";
@@ -39,14 +40,19 @@ builder.Services.AddSession(options => {
 // --- 4. CẤU HÌNH COOKIE ĐĂNG NHẬP ---
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    // Đường dẫn đăng nhập chung cho Customer
+    options.Cookie.Name = ".Manwah.Identity";
+    options.Cookie.HttpOnly = true;
+    options.ExpireTimeSpan = TimeSpan.FromDays(30); // Ghi nhớ đăng nhập 30 ngày
+
+    // Đường dẫn đăng nhập cho khách hàng
     options.LoginPath = "/Customer/Account/Login";
     options.LogoutPath = "/Customer/Account/Logout";
     options.AccessDeniedPath = "/Customer/Account/AccessDenied";
 
     options.Events.OnRedirectToLogin = context =>
     {
-        // Nếu đang truy cập Admin thì điều hướng về Login của Admin
+        // Logic điều hướng thông minh khi quét mã QR
+        // context.RedirectUri đã bao gồm tham số ReturnUrl (ví dụ: ?ReturnUrl=/Customer/Menu?tableId=5)
         if (context.Request.Path.StartsWithSegments("/Admin"))
         {
             context.Response.Redirect("/Admin/Account/Login?ReturnUrl=" + context.Request.Path);
@@ -59,57 +65,62 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
+// --- 5. CẤU HÌNH SERVICES KHÁC ---
 builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 builder.Services.AddRazorPages();
+builder.Services.AddHttpContextAccessor(); // Cần thiết để truy cập Session từ các class hỗ trợ
 
 var app = builder.Build();
 
-// --- 5. MIDDLEWARE PIPELINE ---
+// --- 6. MIDDLEWARE PIPELINE (Thứ tự cực kỳ quan trọng) ---
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
 }
 else
 {
-    app.UseExceptionHandler("/Customer/Home/Error"); // Trỏ về Error của Customer
+    app.UseExceptionHandler("/Customer/Home/Error");
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+app.UseStaticFiles(); // Đọc ảnh từ wwwroot/images
+
 app.UseRouting();
 
+// Thứ tự: Session -> Auth -> Authorization
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- 6. CẤU HÌNH ROUTING (QUAN TRỌNG) ---
+// --- 7. CẤU HÌNH ROUTING ---
 
-// 1. Route cho các Area (Admin & Customer)
+// Route cho Area (Admin/Customer)
 app.MapControllerRoute(
     name: "MyAreas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
-// 2. Route mặc định: Tự động trỏ vào Area Customer khi vào trang chủ
+// Route mặc định (Trỏ thẳng vào trang chủ khách hàng)
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}",
-    defaults: new { area = "Customer" }); // Dòng này giúp "/" trỏ thẳng vào Customer/Home/Index
+    defaults: new { area = "Customer" });
 
 app.MapRazorPages();
 
-// --- 7. SEED DATA ---
+// --- 8. SEED DATA (Khởi tạo Admin, Table, Category mẫu) ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
+        // Chạy SeedData từ class DbInitializer bạn đã có
         await DbInitializer.SeedData(services);
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Lỗi khi chạy Seed Data!");
+        logger.LogError(ex, "Có lỗi xảy ra khi khởi tạo dữ liệu mẫu!");
     }
 }
 

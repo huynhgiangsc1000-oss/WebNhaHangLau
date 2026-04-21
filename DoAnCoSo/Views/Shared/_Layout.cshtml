@@ -128,7 +128,13 @@
                     </a>
 
                     <div class="nav-category">Nhân sự & Khách hàng</div>
-                    <a class="nav-link rounded-pill" href="#"><i class="bi bi-people"></i><span>Khách hàng</span></a>
+                    <a class="nav-link rounded-pill @(ViewContext.RouteData.Values["Controller"]?.ToString() == "User" ? "active" : "")"
+                       asp-area="Admin"
+                       asp-controller="User"
+                       asp-action="Index">
+                        <i class="bi bi-people"></i>
+                        <span>Khách hàng</span>
+                    </a>
                     <a class="nav-link rounded-pill" href="#"><i class="bi bi-person-badge"></i><span>Nhân viên</span></a>
                     <a class="nav-link rounded-pill" href="#"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a>
 

@@ -1,9 +1,7 @@
-﻿using DoAnCoSo.Data;
-using DoAnCoSo.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
+using DoAnCoSo.Data;
+using DoAnCoSo.Models;
 
 namespace DoAnCoSo.Areas.Customer.Controllers
 {
@@ -17,72 +15,40 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             _context = context;
         }
 
-        [AllowAnonymous]
-        public async Task<IActionResult> Index(int? categoryId, int? tableId)
+        public async Task<IActionResult> Index(int? categoryId)
         {
-            // --- 1. XỬ LÝ TABLE ID ---
-            // Ưu tiên: Tham số URL > Cookie > Session
-            if (!tableId.HasValue)
-            {
-                var cookieId = Request.Cookies["SavedTableId"];
-                if (int.TryParse(cookieId, out int id)) tableId = id;
-            }
+            // 1. Lấy danh sách danh mục để hiển thị sidebar (Giữ nguyên)
+            var categories = await _context.Categories
+                .Include(c => c.SubCategories)
+                .Where(c => c.ParentId == null)
+                .ToListAsync();
 
-            if (tableId.HasValue)
-            {
-                var table = await _context.Tables.FindAsync(tableId.Value);
-                if (table != null)
-                {
-                    if (table.Status == "Empty")
-                    {
-                        table.Status = "Occupied";
-                        _context.Update(table);
-                        await _context.SaveChangesAsync();
-                    }
-                    ViewBag.CurrentTable = table;
+            // 2. Query sản phẩm kèm theo thông tin Category để tránh lỗi null ở View
+            var productsQuery = _context.Products.Include(p => p.Category).AsQueryable();
 
-                    // Lưu lại để các request sau không bị mất
-                    HttpContext.Session.SetString("TableId", tableId.Value.ToString());
-                    Response.Cookies.Append("SavedTableId", tableId.Value.ToString(), new CookieOptions
-                    {
-                        Expires = DateTime.Now.AddDays(1),
-                        HttpOnly = true,
-                        IsEssential = true
-                    });
-                }
-            }
-
-            // --- 2. LẤY DANH MỤC ---
-            var allCategories = await _context.Categories.AsNoTracking().ToListAsync();
-            ViewBag.Categories = allCategories;
-            ViewBag.SelectedId = categoryId;
-
-            // --- 3. TRUY VẤN SẢN PHẨM ---
-            var productsQuery = _context.Products.AsNoTracking()
-                .Include(p => p.Category)
-                .AsQueryable();
-
+            // 3. Logic lọc cải tiến
             if (categoryId.HasValue)
             {
-                // Lấy ID chính nó và các ID con để hiển thị sản phẩm của cả nhóm
-                var listCategoryIds = allCategories
-                    .Where(c => c.CategoryId == categoryId || c.ParentId == categoryId)
+                // Bước A: Tìm tất cả các ID của danh mục con thuộc về categoryId này
+                var subCategoryIds = await _context.Categories
+                    .Where(c => c.ParentId == categoryId)
                     .Select(c => c.CategoryId)
-                    .ToList();
+                    .ToListAsync();
 
-                productsQuery = productsQuery.Where(p => listCategoryIds.Contains(p.CategoryId));
+                // Bước B: Thêm chính ID của category đang chọn vào danh sách lọc
+                subCategoryIds.Add(categoryId.Value);
+
+                // Bước C: Lọc sản phẩm nào nằm trong danh sách ID trên
+                productsQuery = productsQuery.Where(p => subCategoryIds.Contains(p.CategoryId));
+
+                ViewBag.CurrentCategory = categoryId;
             }
 
-            return View(await productsQuery.ToListAsync());
-        }
+            // 4. Thực thi lấy dữ liệu
+            var products = await productsQuery.Where(p => p.IsAvailable).ToListAsync();
 
-        public async Task<IActionResult> GetProductDetail(int id)
-        {
-            var product = await _context.Products
-                .Include(p => p.Category)
-                .FirstOrDefaultAsync(p => p.ProductId == id);
-            if (product == null) return NotFound();
-            return PartialView("_ProductDetailPartial", product);
+            ViewBag.Categories = categories;
+            return View(products);
         }
     }
 }

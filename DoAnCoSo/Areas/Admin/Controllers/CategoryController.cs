@@ -16,21 +16,21 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         public CategoryController(ApplicationDbContext context) => _context = context;
 
         // Hiển thị danh sách phân cấp
+        // Sửa lại Index để nhìn rõ phân cấp trong trang quản trị
         public async Task<IActionResult> Index()
         {
             var categories = await _context.Categories
-                .Include(c => c.ParentCategory) // Để hiển thị "Thuộc nhóm"
-                .Include(c => c.Products)       // Để hiển thị "Số món"
-                .OrderBy(c => c.ParentId == null ? 0 : 1) // Nhóm gốc lên trước
-                .ThenBy(c => c.ParentId)                  // Sau đó gom nhóm theo cha
+                .Include(c => c.ParentCategory)
+                .OrderBy(c => c.ParentId ?? c.CategoryId) // Sắp xếp để con đi theo cha
+                .ThenBy(c => c.ParentId == null ? 0 : 1)
                 .ToListAsync();
-
             return View(categories);
         }
 
+        // Sửa lại Create/Edit để chỉ những thằng không có cha mới được làm "Cha" của thằng khác
         public IActionResult Create()
         {
-            // Chỉ lấy các loại món không có cha để làm danh sách Nhóm Gốc
+            // Chỉ lấy những danh mục gốc (ParentId == null) để làm danh sách lựa chọn
             ViewBag.ParentId = new SelectList(_context.Categories.Where(c => c.ParentId == null), "CategoryId", "CategoryName");
             return View();
         }

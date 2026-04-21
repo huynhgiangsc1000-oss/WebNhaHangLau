@@ -1,5 +1,6 @@
 ﻿using DoAnCoSo.Models;
 using DoAnCoSo.Models.ViewModels; // Đảm bảo bạn có LoginViewModel
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 

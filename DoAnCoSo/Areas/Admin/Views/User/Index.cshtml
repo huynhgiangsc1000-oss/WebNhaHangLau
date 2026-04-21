@@ -1,0 +1,138 @@
+﻿@model IEnumerable<DoAnCoSo.Models.User>
+
+@{
+    ViewData["Title"] = "Quản lý khách hàng";
+}
+
+<div class="container-fluid pt-4">
+    <div class="card shadow-sm border-0" style="border-radius: 12px;">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="m-0 fw-bold text-primary">
+                <i class="bi bi-people-fill me-2"></i>DANH SÁCH KHÁCH HÀNG
+            </h5>
+            <div class="d-flex gap-2">
+                <span class="badge bg-light text-dark border">Tổng: @Model.Count() khách hàng</span>
+            </div>
+        </div>
+
+        <div class="card-body">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light text-secondary">
+                        <tr>
+                            <th style="width: 25%">Họ và Tên</th>
+                            <th>Số điện thoại</th>
+                            <th>Điểm tích lũy</th>
+                            <th>Hạng thành viên</th>
+                            <th>Ngày tham gia</th>
+                            <th class="text-end" style="width: 15%">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark">@item.FullName</div>
+                                    <small class="text-muted">ID: #@item.Id</small>
+                                </td>
+                                <td>
+                                    <i class="bi bi-telephone me-1 text-muted"></i>@item.PhoneNumber
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-coin text-warning me-1"></i>
+                                        <span class="fw-bold">@item.Points.ToString("N0")</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (item.Rank != null)
+                                    {
+                                        var badgeClass = item.Rank.RankName switch
+                                        {
+                                            "Vàng" => "bg-warning text-dark",
+                                            "Bạc" => "bg-info text-dark",
+                                            "Bậc Đồng" => "bg-secondary text-white",
+                                            _ => "bg-light text-dark border"
+                                        };
+
+                                        <span class="badge @badgeClass">
+                                            <i class="bi bi-trophy-fill me-1"></i>@item.Rank.RankName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border">Chưa có hạng</span>
+                                    }
+                                </td>
+                                <td>
+                                    <small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy")</small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group shadow-sm" role="group">
+                                        <a asp-action="Details" asp-route-id="@item.Id"
+                                           class="btn btn-sm btn-outline-info" title="Xem lịch sử mua hàng">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@item.Id"
+                                           class="btn btn-sm btn-outline-primary" title="Sửa điểm/hạng">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.Id"
+                                           class="btn btn-sm btn-outline-danger" title="Xóa tài khoản"
+                                           onclick="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?')">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    Chưa có dữ liệu khách hàng.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table thead th {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        border-top: none;
+    }
+
+    .btn-group .btn {
+        padding: 0.4rem 0.6rem;
+    }
+
+    .badge {
+        font-weight: 500;
+        padding: 0.5em 0.8em;
+    }
+</style>

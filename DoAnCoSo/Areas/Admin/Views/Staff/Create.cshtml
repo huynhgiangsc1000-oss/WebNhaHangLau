@@ -1,0 +1,74 @@
+﻿@model DoAnCoSo.Models.User
+
+@{
+    ViewData["Title"] = "Thêm nhân viên mới";
+}
+
+<div class="container-fluid pt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <a asp-action="Index" class="btn btn-link text-decoration-none p-0 text-secondary">
+                    <i class="bi bi-arrow-left"></i> Quay lại danh sách
+                </a>
+            </div>
+
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-header bg-white py-3">
+                    <h5 class="fw-bold mb-0 text-primary">Cấp tài khoản nhân viên</h5>
+                    <small class="text-muted">Nhân viên sẽ dùng Số điện thoại để đăng nhập</small>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Họ và Tên</label>
+                            <input name="fullName" class="form-control shadow-none" placeholder="VD: Nguyễn Văn A" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số điện thoại</label>
+                            <input name="phoneNumber" type="tel" class="form-control shadow-none"
+                                   placeholder="VD: 0123456789" required
+                                   pattern="[0-9]{10}" title="Vui lòng nhập đúng 10 số điện thoại" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Mật khẩu mặc định</label>
+                            <div class="input-group">
+                                <input name="password" type="password" id="passInput" class="form-control shadow-none" required />
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePass()">
+                                    <i class="bi bi-eye" id="eyeIcon"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-info">
+                                <i class="bi bi-info-circle"></i> Nên đặt mật khẩu có chữ Hoa, chữ Thường và Số.
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                            <i class="bi bi-person-check-fill me-2"></i> Xác nhận thêm nhân viên
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function togglePass() {
+            var x = document.getElementById("passInput");
+            var icon = document.getElementById("eyeIcon");
+            if (x.type === "password") {
+                x.type = "text";
+                icon.classList.replace("bi-eye", "bi-eye-slash");
+            } else {
+                x.type = "password";
+                icon.classList.replace("bi-eye-slash", "bi-eye");
+            }
+        }
+    </script>
+}

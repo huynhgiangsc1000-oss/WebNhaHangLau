@@ -5,41 +5,110 @@
 }
 
 <div class="container-fluid pt-4">
-    <div class="card shadow-sm border-0" style="border-radius: 12px;">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="m-0 fw-bold text-primary">
-                <i class="bi bi-people-fill me-2"></i>DANH SÁCH KHÁCH HÀNG
-            </h5>
-            <div class="d-flex gap-2">
-                <span class="badge bg-light text-dark border">Tổng: @Model.Count() khách hàng</span>
-            </div>
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h4 class="fw-bold text-dark"><i class="bi bi-people-fill me-2 text-primary"></i>QUẢN LÝ KHÁCH HÀNG</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Khách hàng</li>
+                </ol>
+            </nav>
         </div>
+        <div class="col-md-4 text-end">
+            <span class="badge bg-white text-dark border p-2 shadow-sm">
+                <i class="bi bi-person-check me-1 text-success"></i> Tổng cộng: @Model.Count() khách hàng
+            </span>
+        </div>
+    </div>
 
+    <div class="card shadow-sm border-0" style="border-radius: 12px;">
         <div class="card-body">
+
             @if (TempData["Success"] != null)
             {
-                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
                     <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             }
             @if (TempData["Error"] != null)
             {
-                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             }
 
+            <div class="bg-light p-3 rounded-3 mb-4">
+                <form asp-action="Index" method="get" class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" name="searchString" value="@ViewBag.CurrentSearch"
+                                   class="form-control border-start-0 ps-0" placeholder="Tìm tên hoặc số điện thoại...">
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <select name="rankId" class="form-select" asp-items="ViewBag.Ranks">
+                            <option value="">-- Tất cả các hạng --</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-5 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-filter me-1"></i>Lọc
+                        </button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </a>
+
+                        <div class="ms-auto">
+                            <form asp-action="UpdateAllRanks" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-warning text-dark fw-bold"
+                                        onclick="return confirm('Hệ thống sẽ dựa trên điểm để cập nhật lại toàn bộ hạng thành viên. Tiếp tục?')">
+                                    <i class="bi bi-magic me-1"></i>QUÉT HẠNG
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead class="table-light text-secondary">
                         <tr>
-                            <th style="width: 25%">Họ và Tên</th>
+                            <th style="width: 25%">Khách hàng</th>
                             <th>Số điện thoại</th>
-                            <th>Điểm tích lũy</th>
-                            <th>Hạng thành viên</th>
-                            <th>Ngày tham gia</th>
+                            <th>
+                                <a asp-action="Index" asp-route-sortOrder="@ViewBag.PointSortParm" class="text-decoration-none text-dark">
+                                    Điểm tích lũy
+                                    @if (ViewBag.CurrentSort == "Points" || ViewBag.CurrentSort == "points_desc")
+                                    {
+                                        <i class="bi bi-sort-numeric-down-alt text-primary"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-arrow-down-up small text-muted"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>Hạng</th>
+                            <th>
+                                <a asp-action="Index" asp-route-sortOrder="@ViewBag.DateSortParm" class="text-decoration-none text-dark">
+                                    Ngày tham gia
+                                    @if (string.IsNullOrEmpty(ViewBag.CurrentSort))
+                                    {
+                                        <i class="bi bi-sort-down text-primary"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-arrow-down-up small text-muted"></i>
+                                    }
+                                </a>
+                            </th>
                             <th class="text-end" style="width: 15%">Hành động</th>
                         </tr>
                     </thead>
@@ -48,15 +117,22 @@
                         {
                             <tr>
                                 <td>
-                                    <div class="fw-bold text-dark">@item.FullName</div>
-                                    <small class="text-muted">ID: #@item.Id</small>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm me-3 bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                                            @item.FullName.Substring(0, 1).ToUpper()
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@item.FullName</div>
+                                            <small class="text-muted">#@item.Id</small>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
-                                    <i class="bi bi-telephone me-1 text-muted"></i>@item.PhoneNumber
+                                    <span class="text-muted"><i class="bi bi-telephone me-1"></i>@item.PhoneNumber</span>
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <i class="bi bi-coin text-warning me-1"></i>
+                                        <i class="bi bi-coin text-warning me-2 fs-5"></i>
                                         <span class="fw-bold">@item.Points.ToString("N0")</span>
                                     </div>
                                 </td>
@@ -67,11 +143,11 @@
                                         {
                                             "Vàng" => "bg-warning text-dark",
                                             "Bạc" => "bg-info text-dark",
-                                            "Bậc Đồng" => "bg-secondary text-white",
+                                            "Đồng" => "bg-secondary text-white",
                                             _ => "bg-light text-dark border"
                                         };
 
-                                        <span class="badge @badgeClass">
+                                        <span class="badge @badgeClass shadow-sm" style="min-width: 80px;">
                                             <i class="bi bi-trophy-fill me-1"></i>@item.Rank.RankName
                                         </span>
                                     }
@@ -84,55 +160,77 @@
                                     <small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy")</small>
                                 </td>
                                 <td class="text-end">
-                                    <div class="btn-group shadow-sm" role="group">
+                                    <div class="btn-group" role="group">
                                         <a asp-action="Details" asp-route-id="@item.Id"
-                                           class="btn btn-sm btn-outline-info" title="Xem lịch sử mua hàng">
+                                           class="btn btn-sm btn-outline-info" title="Xem lịch sử">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                         <a asp-action="Edit" asp-route-id="@item.Id"
-                                           class="btn btn-sm btn-outline-primary" title="Sửa điểm/hạng">
-                                            <i class="bi bi-pencil-square"></i>
+                                           class="btn btn-sm btn-outline-primary" title="Sửa thông tin">
+                                            <i class="bi bi-pencil"></i>
                                         </a>
-                                        <a asp-action="Delete" asp-route-id="@item.Id"
-                                           class="btn btn-sm btn-outline-danger" title="Xóa tài khoản"
-                                           onclick="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?')">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
+                                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Xóa khách hàng này?')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </div>
-                                </td>
-                            </tr>
-                        }
-                        @if (!Model.Any())
-                        {
-                            <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
-                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                    Chưa có dữ liệu khách hàng.
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
+
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5">
+                    <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="opacity-25 mb-3">
+                    <p class="text-muted">Không tìm thấy khách hàng nào khớp với yêu cầu.</p>
+                </div>
+            }
         </div>
     </div>
 </div>
 
 <style>
+    /* Làm đẹp giao diện bảng */
     .table thead th {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        font-weight: 600;
-        border-top: none;
+        font-weight: 700;
+        padding: 15px 10px;
+        border-bottom: 2px solid #f8f9fa;
+    }
+
+    .table tbody td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .avatar-sm {
+        font-size: 0.9rem;
     }
 
     .btn-group .btn {
-        padding: 0.4rem 0.6rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px !important;
+        margin-left: 3px;
     }
 
     .badge {
-        font-weight: 500;
-        padding: 0.5em 0.8em;
+        font-size: 0.75rem;
+        padding: 0.6em 1em;
+        border-radius: 30px;
+    }
+
+    .input-group-text {
+        border-color: #dee2e6;
+    }
+
+    .form-control:focus, .form-select:focus {
+        box-shadow: none;
+        border-color: #0d6efd;
     }
 </style>

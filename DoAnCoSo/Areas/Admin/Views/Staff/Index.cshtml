@@ -1,0 +1,77 @@
+﻿@model IEnumerable<DoAnCoSo.Models.User>
+@{
+    ViewData["Title"] = "Quản lý nhân viên";
+}
+
+<div class="container-fluid pt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-dark">Quản lý đội ngũ nhân viên</h4>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <i class="bi bi-person-plus-fill me-2"></i>Thêm nhân viên mới
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Họ và Tên</th>
+                            <th>Số điện thoại (ID)</th>
+                            <th>Ngày gia nhập</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var staff in Model)
+                        {
+                            <tr id="row-@staff.Id">
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                            <i class="bi bi-person-badge"></i>
+                                        </div>
+                                        <span class="fw-bold">@staff.FullName</span>
+                                    </div>
+                                </td>
+                                <td>@staff.PhoneNumber</td>
+                                <td>@staff.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                <td class="text-end pe-4">
+                                    <button onclick="confirmDelete(@staff.Id)" class="btn btn-sm btn-outline-danger border-0">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function confirmDelete(id) {
+            Swal.fire({
+                title: 'Xác nhận xóa?',
+                text: "Tài khoản nhân viên này sẽ bị gỡ bỏ hoàn toàn!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Xóa ngay',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("Delete", "Staff")', { id: id }, function (data) {
+                        if (data.success) {
+                            $(`#row-${id}`).fadeOut();
+                            Swal.fire('Đã xóa!', 'Nhân viên đã được gỡ khỏi hệ thống.', 'success');
+                        }
+                    });
+                }
+            })
+        }
+    </script>
+}

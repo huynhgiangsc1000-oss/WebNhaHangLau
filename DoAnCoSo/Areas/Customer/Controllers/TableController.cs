@@ -25,15 +25,24 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         }
 
         // 2. Xử lý khi khách chọn bàn thủ công từ sơ đồ hoặc quét mã QR
+        [HttpGet]
         public async Task<IActionResult> AccessTable(int id)
         {
+            // Nếu chưa đăng nhập, bắt đi đăng nhập và kèm theo ReturnUrl quay lại chính hàm này
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Account", new
+                {
+                    area = "Customer",
+                    returnUrl = Url.Action("AccessTable", "Table", new { area = "Customer", id = id })
+                });
+            }
+
             var table = await _context.Tables.FindAsync(id);
             if (table == null) return NotFound();
 
-            // Lưu vào Session (dạng String để khớp với CartController)
+            // Lưu bàn vào Session & Cookie
             HttpContext.Session.SetString("TableId", id.ToString());
-
-            // Lưu vào Cookie để ghi nhớ nếu khách đóng trình duyệt
             CookieOptions option = new CookieOptions
             {
                 Expires = DateTime.Now.AddDays(1),
@@ -42,11 +51,8 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             };
             Response.Cookies.Append("SavedTableId", id.ToString(), option);
 
-            // Sau khi chọn bàn thành công, chuyển hướng đến Menu
             return RedirectToAction("Index", "Menu");
         }
-
-        // 3. Xem thông tin bàn mà trình duyệt này đang ghi nhớ
         public async Task<IActionResult> CurrentTable()
         {
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];

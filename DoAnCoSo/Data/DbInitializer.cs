@@ -13,7 +13,7 @@ namespace DoAnCoSo.Data
             var userManager = serviceProvider.GetRequiredService<UserManager<User>>();
             var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // 1. Tạo các Hạng thành viên (Ranks)
+            // 1. Khởi tạo các Hạng thành viên (Ranks)
             if (!context.Ranks.Any())
             {
                 context.Ranks.AddRange(
@@ -25,40 +25,56 @@ namespace DoAnCoSo.Data
                 await context.SaveChangesAsync();
             }
 
-            // 2. Tạo các Quyền (Roles)
-            string[] roleNames = { "Admin", "Customer" };
+            // 2. Khởi tạo các Quyền (Roles) - Đã thêm "Staff"
+            string[] roleNames = { "Admin", "Staff", "Customer" };
             foreach (var roleName in roleNames)
             {
-                var roleExist = await roleManager.RoleExistsAsync(roleName);
-                if (!roleExist)
+                if (!await roleManager.RoleExistsAsync(roleName))
                 {
                     await roleManager.CreateAsync(new IdentityRole<int>(roleName));
                 }
             }
 
-            // 3. Tạo tài khoản Admin mặc định
-            // QUAN TRỌNG: Kiểm tra theo UserName là Số điện thoại
-            var adminUser = await userManager.FindByNameAsync("HuynhVanGiang");
+            var defaultRank = await context.Ranks.FirstOrDefaultAsync(r => r.RankName == "Đồng");
+
+            // 3. Tạo tài khoản Admin (Sử dụng SĐT làm UserName)
+            var adminPhone = "0984962700";
+            var adminUser = await userManager.FindByNameAsync(adminPhone);
             if (adminUser == null)
             {
-                var defaultRank = await context.Ranks.FirstOrDefaultAsync(r => r.RankName == "Đồng");
-
                 var admin = new User
                 {
-                    // Để UserName là SĐT để đăng nhập cho nhanh và đồng nhất
-                    UserName = "0984962700",
-                    PhoneNumber = "0984962700",
-                    FullName = "Huynh Van Giang", // Tên hiển thị của bạn
+                    UserName = adminPhone,
+                    PhoneNumber = adminPhone,
+                    FullName = "Huynh Van Giang",
                     Email = "huynhgiangsc1000@gmail.com",
                     EmailConfirmed = true,
-                    RankId = defaultRank?.RankId
+                    RankId = defaultRank?.RankId,
+                    CreatedAt = DateTime.Now
                 };
 
-                var createAdmin = await userManager.CreateAsync(admin, "Giangsc1000@");
-                if (createAdmin.Succeeded)
+                var result = await userManager.CreateAsync(admin, "Giangsc1000@");
+                if (result.Succeeded) await userManager.AddToRoleAsync(admin, "Admin");
+            }
+
+            // 4. Tạo tài khoản Nhân viên mẫu (Staff)
+            var staffPhone = "0123456789";
+            var staffUser = await userManager.FindByNameAsync(staffPhone);
+            if (staffUser == null)
+            {
+                var staff = new User
                 {
-                    await userManager.AddToRoleAsync(admin, "Admin");
-                }
+                    UserName = staffPhone,
+                    PhoneNumber = staffPhone,
+                    FullName = "Nhân Viên Phục Vụ 01",
+                    Email = "staff01@manwah.com",
+                    EmailConfirmed = true,
+                    RankId = defaultRank?.RankId,
+                    CreatedAt = DateTime.Now
+                };
+
+                var result = await userManager.CreateAsync(staff, "Staff123@");
+                if (result.Succeeded) await userManager.AddToRoleAsync(staff, "Staff");
             }
         }
     }

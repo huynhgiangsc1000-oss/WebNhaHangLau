@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace DoAnCoSo.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")] // Chỉ cho phép tài khoản Admin truy cập
+    [Authorize(Roles = "Admin,Staff")]// Chỉ cho phép tài khoản Admin truy cập
     public class TableController : Controller
     {
         private readonly ApplicationDbContext _context;

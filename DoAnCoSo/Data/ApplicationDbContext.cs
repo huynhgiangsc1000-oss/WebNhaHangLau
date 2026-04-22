@@ -5,6 +5,7 @@ using DoAnCoSo.Models;
 
 namespace DoAnCoSo.Data
 {
+    // Sử dụng User model tùy chỉnh và khóa chính kiểu int
     public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<int>, int>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
@@ -24,7 +25,7 @@ namespace DoAnCoSo.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Đổi tên các bảng Identity cho dễ quản lý
+            // Đổi tên các bảng Identity mặc định sang tên đơn giản hơn
             modelBuilder.Entity<User>().ToTable("Users");
             modelBuilder.Entity<IdentityRole<int>>().ToTable("Roles");
             modelBuilder.Entity<IdentityUserRole<int>>().ToTable("UserRoles");
@@ -32,6 +33,9 @@ namespace DoAnCoSo.Data
             modelBuilder.Entity<IdentityUserLogin<int>>().ToTable("UserLogins");
             modelBuilder.Entity<IdentityRoleClaim<int>>().ToTable("RoleClaims");
             modelBuilder.Entity<IdentityUserToken<int>>().ToTable("UserTokens");
+
+            // Nếu sau này bạn muốn Nhân viên xác nhận đơn hàng, 
+            // có thể thêm StaffId vào Order và cấu hình tại đây.
         }
     }
 }

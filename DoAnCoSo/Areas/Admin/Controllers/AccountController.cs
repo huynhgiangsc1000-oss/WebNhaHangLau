@@ -47,9 +47,9 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 var user = await _userManager.FindByNameAsync(model.Phone);
                 var roles = await _userManager.GetRolesAsync(user);
 
-                if (roles.Contains("Admin"))
+                // SỬA LẠI ĐIỀU KIỆN TẠI ĐÂY
+                if (roles.Contains("Admin") || roles.Contains("Staff"))
                 {
-                    // Nếu có link cũ đang chờ thì quay lại, không thì vào Dashboard
                     if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
                         return Redirect(returnUrl);
@@ -57,9 +57,8 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                     return RedirectToAction("Index", "Home", new { area = "Admin" });
                 }
 
-                // Nếu đăng nhập đúng nhưng không phải Admin thì đăng xuất ngay và báo lỗi
                 await _signInManager.SignOutAsync();
-                ModelState.AddModelError(string.Empty, "Bạn không có quyền truy cập vào khu vực quản trị.");
+                ModelState.AddModelError(string.Empty, "Bạn không có quyền truy cập vào khu vực này.");
             }
             else
             {

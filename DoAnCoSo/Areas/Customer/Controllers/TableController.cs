@@ -26,23 +26,32 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
         // 2. Xử lý khi khách chọn bàn thủ công từ sơ đồ hoặc quét mã QR
         [HttpGet]
+        // Areas/Customer/Controllers/TableController.cs
+        [HttpGet]
+        // Areas/Customer/Controllers/TableController.cs
+        [HttpGet]
         public async Task<IActionResult> AccessTable(int id)
         {
-            // Nếu chưa đăng nhập, bắt đi đăng nhập và kèm theo ReturnUrl quay lại chính hàm này
+            // 1. Nếu chưa đăng nhập, chuyển hướng sang trang Login
             if (!User.Identity.IsAuthenticated)
             {
+                // Quan trọng: returnUrl phải dẫn về đúng Action này kèm theo ID của bàn
+                string returnUrl = Url.Action("AccessTable", "Table", new { area = "Customer", id = id });
+
                 return RedirectToAction("Login", "Account", new
                 {
                     area = "Customer",
-                    returnUrl = Url.Action("AccessTable", "Table", new { area = "Customer", id = id })
+                    returnUrl = returnUrl
                 });
             }
 
+            // 2. Nếu đã đăng nhập, tiến hành nhận bàn
             var table = await _context.Tables.FindAsync(id);
             if (table == null) return NotFound();
 
-            // Lưu bàn vào Session & Cookie
+            // Lưu vào Session và Cookie
             HttpContext.Session.SetString("TableId", id.ToString());
+
             CookieOptions option = new CookieOptions
             {
                 Expires = DateTime.Now.AddDays(1),
@@ -51,6 +60,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             };
             Response.Cookies.Append("SavedTableId", id.ToString(), option);
 
+            // Chuyển hướng đến trang gọi món
             return RedirectToAction("Index", "Menu");
         }
         public async Task<IActionResult> CurrentTable()

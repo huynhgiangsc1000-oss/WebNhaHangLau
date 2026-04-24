@@ -1,4 +1,5 @@
 ﻿@model IEnumerable<DoAnCoSo.Models.Order>
+@Html.AntiForgeryToken()
 
 @{
     ViewData["Title"] = "Quản lý đơn hàng";
@@ -104,25 +105,32 @@
         function updateStatus(id) {
             var status = $('#statusSelect').val();
 
-            // Disable nút để tránh bấm nhiều lần
+            // Lấy token từ input ẩn mà ASP.NET tự sinh ra trong form
+            var token = $('input[name="__RequestVerificationToken"]').val();
+
             $('.btn-update-status').prop('disabled', true);
 
             $.ajax({
                 url: '/Admin/Order/UpdateStatus',
                 type: 'POST',
-                data: { id: id, status: status },
+                data: {
+                    __RequestVerificationToken: token, // Gửi kèm token ở đây
+                    id: id,
+                    status: status
+                },
                 success: function (response) {
                     if (response.success) {
                         $('#orderDetailModal').modal('hide');
-                        // Sử dụng thông báo đẹp nếu có (như SweetAlert2), nếu không dùng location.reload
                         location.reload();
                     } else {
                         alert("Lỗi: " + response.message);
                         $('.btn-update-status').prop('disabled', false);
                     }
                 },
-                error: function () {
-                    alert("Không thể kết nối đến server.");
+                error: function (xhr) {
+                    // Log lỗi chi tiết ra console để kiểm tra
+                    console.error(xhr.responseText);
+                    alert("Không thể kết nối đến server. Vui lòng kiểm tra console (F12).");
                     $('.btn-update-status').prop('disabled', false);
                 }
             });

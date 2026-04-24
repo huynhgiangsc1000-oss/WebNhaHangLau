@@ -9,6 +9,7 @@
 
 @section Styles {
     <style>
+        /* Sidebar layout */
         .menu-sidebar {
             position: sticky;
             top: 20px;
@@ -16,6 +17,7 @@
             z-index: 100;
             border-radius: 15px;
             overflow: hidden;
+            background: #fff;
         }
 
         .category-link {
@@ -35,7 +37,7 @@
                 border-left-color: #8b0000;
             }
 
-            /* Hiệu ứng mũi tên xoay khi mở/đóng */
+            /* Hiệu ứng xoay mũi tên */
             .category-link i.bi-chevron-down {
                 transition: transform 0.3s;
             }
@@ -44,11 +46,13 @@
                 transform: rotate(180deg);
             }
 
+        /* Card món ăn */
         .product-card {
             border: none;
             border-radius: 15px;
             transition: 0.3s;
             background: #fff;
+            cursor: pointer; /* Hiệu ứng bàn tay khi di chuột vào card */
         }
 
             .product-card:hover {
@@ -66,6 +70,11 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .product-card:hover .product-img {
+            transform: scale(1.1);
         }
 
         .btn-add-cart {
@@ -81,14 +90,14 @@
 <div class="container py-5">
     <div class="row">
         <div class="col-lg-3">
-            <div class="menu-sidebar shadow-sm bg-white" id="menuAccordion">
+            <div class="menu-sidebar shadow-sm" id="menuAccordion">
                 <div class="p-3 border-bottom">
                     <h5 class="fw-bold text-danger m-0 text-uppercase">Danh mục</h5>
                 </div>
 
                 <a asp-action="Index" asp-route-categoryId=""
-                   class="category-link @(currentCatId == null ? "active" : "")">
-                    TẤT CẢ MÓN ĂN
+                   class="category-link border-bottom @(currentCatId == null ? "active" : "")">
+                    <i class="bi bi-grid-fill me-2"></i> TẤT CẢ MÓN ĂN
                 </a>
 
                 @if (categories != null)
@@ -96,7 +105,6 @@
                     @foreach (var cat in categories)
                     {
                         var hasSub = cat.SubCategories != null && cat.SubCategories.Any();
-                        // Kiểm tra xem danh mục này hoặc con của nó có đang được chọn không
                         var isParentActive = currentCatId == cat.CategoryId || (hasSub && cat.SubCategories.Any(s => s.CategoryId == currentCatId));
 
                         <div class="category-item">
@@ -138,18 +146,18 @@
         <div class="col-lg-9">
             <div class="d-flex justify-content-between align-items-end mb-3">
                 <h2 class="fw-bold m-0">THỰC ĐƠN TRỨ DANH</h2>
-                <span class="badge bg-danger">@Model.Count() món</span>
             </div>
 
             <div class="row g-4">
                 @foreach (var item in Model)
                 {
                     <div class="col-md-4 col-sm-6">
-                        <div class="card h-100 product-card shadow-sm">
+                        <div class="card h-100 product-card shadow-sm" onclick="showProductDetail(@item.ProductId)">
                             <div class="product-img-wrapper">
-                                @* ĐƯỜNG DẪN ẢNH TỪ WWWROOT *@
-                                <img src="@(string.IsNullOrEmpty(item.ImagePath) ? "/images/no-image.png" : item.ImagePath)"
-                                     class="product-img" alt="@item.ProductName">
+                                <img src="~/images/@item.ImagePath"
+                                     class="product-img"
+                                     alt="@item.ProductName"
+                                     onerror="this.src='/images/no-image.png'">
                             </div>
                             <div class="card-body p-3 d-flex flex-column">
                                 <small class="text-danger fw-bold">@(item.Category?.CategoryName)</small>
@@ -161,14 +169,10 @@
 
                                     @if (hasTable)
                                     {
-                                        <button class="btn btn-add-cart btn-add-to-cart" data-product-id="@item.ProductId">
+                                        <button class="btn btn-add-cart btn-add-to-cart"
+                                                data-product-id="@item.ProductId"
+                                                onclick="event.stopPropagation(); addToCart(@item.ProductId, 1)">
                                             <i class="bi bi-plus-lg"></i> Thêm
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <button class="btn btn-secondary btn-sm" onclick="alert('Vui lòng quét mã tại bàn!')">
-                                            <i class="bi bi-qr-code"></i>
                                         </button>
                                     }
                                 </div>
@@ -181,21 +185,38 @@
     </div>
 </div>
 
+<div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
+            <div id="productModalContent">
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
-        $(document).ready(function () {
-            $('.btn-add-to-cart').click(function () {
-                var btn = $(this);
-                var productId = btn.data('product-id');
-
-                $.post('/Customer/Cart/AddToCart', { productId: productId, quantity: 1 }, function (response) {
-                    if (response.success) {
-                        alert("Đã thêm món vào giỏ!");
-                    } else {
-                        alert(response.message);
-                    }
-                });
+        // Hàm hiển thị Modal chi tiết
+        function showProductDetail(productId) {
+            $.get('/Customer/Menu/GetProductDetail/' + productId, function (data) {
+                $('#productModalContent').html(data);
+                $('#productModal').modal('show');
             });
-        });
+        }
+
+        // Hàm thêm vào giỏ hàng
+        function addToCart(productId, quantity) {
+            // Nếu gọi từ Modal, quantity sẽ được lấy từ input id="quantity"
+            var qty = quantity || $('#quantity').val() || 1;
+
+            $.post('/Customer/Cart/AddToCart', { productId: productId, quantity: qty }, function (response) {
+                if (response.success) {
+                    alert("Đã thêm món vào giỏ!");
+                    $('#productModal').modal('hide');
+                } else {
+                    alert(response.message);
+                }
+            });
+        }
     </script>
 }

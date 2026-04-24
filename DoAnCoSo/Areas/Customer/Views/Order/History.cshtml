@@ -1,4 +1,5 @@
 ﻿@model IEnumerable<DoAnCoSo.Models.Order>
+@using Microsoft.AspNetCore.Http
 
 @{
     ViewData["Title"] = "Lịch sử đặt món";
@@ -10,25 +11,31 @@
         <h2 class="fw-bold">
             <i class="bi bi-clock-history text-danger"></i> Lịch sử đặt món
         </h2>
-        <span class="badge bg-secondary p-2">
-            Bàn: @Context.Session.GetString("TableId")
+        @* Hiển thị TableName từ bản ghi đầu tiên nếu có, hoặc từ Session *@
+        <span class="badge bg-dark p-2 px-3 rounded-pill shadow-sm">
+            <i class="bi bi-geo-alt-fill text-warning"></i>
+            @(Model.FirstOrDefault()?.Table?.TableName ?? Context.Session.GetString("TableId") ?? "Chưa rõ bàn")
         </span>
     </div>
 
     @if (Model != null && Model.Any())
     {
         <div class="row">
-            @foreach (var order in Model.OrderByDescending(o => o.OrderDate))
+            @foreach (var order in Model) @* Model đã được OrderBy ở Controller *@
             {
                 <div class="col-12 mb-3">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+                    <div class="card shadow-sm border-0 rounded-3">
+                        <div class="card-body p-4">
                             <div class="row align-items-center">
                                 <div class="col-md-3">
-                                    <h5 class="mb-1 fw-bold text-primary">Đơn hàng #@order.OrderId</h5>
+                                    <h5 class="mb-1 fw-bold text-dark">Đơn hàng #@order.OrderId</h5>
                                     <p class="text-muted small mb-0">
                                         <i class="bi bi-calendar3"></i> @order.OrderDate.ToString("dd/MM/yyyy HH:mm")
                                     </p>
+                                    @* Hiển thị tên bàn nhỏ ở đây để khách dễ đối soát *@
+                                    <small class="text-primary fw-medium">
+                                        <i class="bi bi-chair"></i> @(order.Table?.TableName ?? "N/A")
+                                    </small>
                                 </div>
 
                                 <div class="col-md-3 text-center">
@@ -43,27 +50,27 @@
                                         };
                                         var statusText = order.Status switch
                                         {
-                                            "Pending" => "Đang chờ",
-                                            "Confirmed" => "Đã xác nhận",
+                                            "Pending" => "Chờ xác nhận",
+                                            "Confirmed" => "Đã nhận đơn",
                                             "Processing" => "Đang chế biến",
-                                            "Completed" => "Hoàn thành",
+                                            "Completed" => "Đã phục vụ",
                                             _ => order.Status
                                         };
                                     }
-                                    <span class="badge @statusClass px-3 py-2 rounded-pill">
+                                    <span class="badge @statusClass px-4 py-2 rounded-pill shadow-sm" style="min-width: 120px;">
                                         @statusText
                                     </span>
                                 </div>
 
-                                <div class="col-md-3 text-end">
+                                <div class="col-md-3 text-md-end text-center my-3 my-md-0">
                                     <span class="text-muted small d-block">Tổng thanh toán:</span>
-                                    <span class="fw-bold text-danger h5">@order.TotalAmount.ToString("N0") VND</span>
+                                    <span class="fw-bold text-danger h5 mb-0">@order.TotalAmount.ToString("N0") đ</span>
                                 </div>
 
                                 <div class="col-md-3 text-end">
                                     <a asp-action="OrderDetails" asp-route-id="@order.OrderId"
-                                       class="btn btn-outline-dark rounded-pill px-4">
-                                        Chi tiết <i class="bi bi-arrow-right-short"></i>
+                                       class="btn btn-outline-danger rounded-pill px-4 hover-shadow">
+                                        Xem chi tiết <i class="bi bi-arrow-right-short"></i>
                                     </a>
                                 </div>
                             </div>
@@ -75,11 +82,12 @@
     }
     else
     {
-        <div class="text-center py-5 shadow-sm bg-white rounded">
-            <i class="bi bi-journal-x display-1 text-muted opacity-25"></i>
-            <p class="h4 text-muted mt-3">Bạn chưa có đơn hàng nào tại bàn này!</p>
-            <a href="@Url.Action("Index", "Menu")" class="btn btn-danger mt-3 px-4 py-2 rounded-pill shadow">
-                Đến thực đơn chọn món ngay
+        <div class="text-center py-5 shadow-sm bg-white rounded-4">
+            <img src="https://cdn-icons-png.flaticon.com/512/4076/4076549.png" style="width: 120px; opacity: 0.3;" class="mb-3">
+            <p class="h4 text-muted mt-3">Bạn chưa có đơn hàng nào!</p>
+            <p class="text-muted small">Hãy chọn món ngon từ menu để bắt đầu trải nghiệm.</p>
+            <a href="@Url.Action("Index", "Menu")" class="btn btn-danger mt-3 px-5 py-2 rounded-pill shadow">
+                Đến thực đơn ngay
             </a>
         </div>
     }
@@ -88,11 +96,20 @@
 @section Styles {
     <style>
         .card {
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent !important;
         }
 
             .card:hover {
-                transform: translateY(-2px);
+                transform: scale(1.01);
+                border-left-color: #dc3545 !important;
+                box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
             }
+
+        .hover-shadow:hover {
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+            background-color: #dc3545;
+            color: white;
+        }
     </style>
 }

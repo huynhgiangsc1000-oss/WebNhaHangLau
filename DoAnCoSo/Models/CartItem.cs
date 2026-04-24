@@ -14,12 +14,17 @@ namespace DoAnCoSo.Models
 
         public int Quantity { get; set; }
 
-        // Bổ sung thuộc tính Product để sửa lỗi "does not contain a definition for 'Product'"
+        public int UserId { get; set; } // Đảm bảo có UserId nếu bạn đang phân tách giỏ hàng
+
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
 
-        // Nếu View của bạn gọi item.ImagePath, hãy tạo một thuộc tính "bắc cầu" từ Product sang
-        [NotMapped] // Không tạo cột này trong Database
+        // --- BỔ SUNG DÒNG NÀY ĐỂ HẾT LỖI ---
+        [ForeignKey("TableId")]
+        public virtual Table Table { get; set; }
+        // ------------------------------------
+
+        [NotMapped]
         public string ImagePath => Product?.ImagePath;
 
         [NotMapped]

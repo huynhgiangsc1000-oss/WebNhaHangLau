@@ -3,59 +3,96 @@
 <div class="modal fade" id="orderDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Chi tiết đơn hàng</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Chi tiết đơn hàng #@Model.OrderId</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4">
-                <div class="row">
-                    <div class="col-md-5 border-end">
-                        <div class="mb-3">
-                            <label class="text-muted small d-block">ID Đơn:</label>
-                            <input type="text" class="form-control bg-light" value="@Model.OrderId" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="text-muted small d-block">Bàn:</label>
-                            <input type="text" class="form-control bg-light" value="Bàn @Model.TableId" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="text-muted small d-block">Tổng tiền:</label>
-                            <input type="text" class="form-control bg-light fw-bold text-danger" value="@Model.TotalAmount.ToString("N0")" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="text-muted small d-block">Ngày giờ đặt:</label>
-                            <input type="text" class="form-control bg-light" value="@Model.OrderDate.ToString("yyyy-MM-dd HH:mm:ss")" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="text-muted small d-block">Trạng thái:</label>
-                            <select class="form-select border-primary" id="statusSelect">
-                                <option value="Pending" selected="@(Model.Status == "Pending")">Đã tiếp nhận</option>
-                                <option value="Processing" selected="@(Model.Status == "Processing")">Đang chế biến</option>
-                                <option value="Completed" selected="@(Model.Status == "Completed")">Hoàn Thành</option>
-                            </select>
-                        </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="text-muted text-uppercase small fw-bold">Thông tin bàn & Thời gian</h6>
+                        <p class="mb-1"><strong>Bàn:</strong> <span class="badge bg-dark">@Model.Table?.TableName</span></p>
+                        <p class="mb-1"><strong>Giờ đặt:</strong> @Model.OrderDate.ToString("HH:mm - dd/MM/yyyy")</p>
+                        <p class="mb-1">
+                            <strong>Trạng thái hiện tại:</strong>
+                            <span class="fw-bold text-primary">@Model.Status</span>
+                        </p>
                     </div>
-
-                    <div class="col-md-7 ps-md-4">
-                        <h6 class="fw-bold mb-3">Chi tiết món ăn</h6>
-                        <div class="border rounded p-3 bg-light" style="min-height: 300px; border-style: dashed !important;">
-                            <ul class="list-unstyled mb-0">
-                                @foreach (var detail in Model.OrderDetails)
-                                {
-                                    <li class="mb-2 border-bottom pb-2">
-                                        <span class="fw-bold">@detail.Product.ProductName</span>
-                                        <span class="float-end">- Số lượng: @detail.Quantity</span>
-                                    </li>
-                                }
-                            </ul>
-                        </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted text-uppercase small fw-bold">Thông tin khách hàng</h6>
+                        @if (Model.User != null)
+                        {
+                            <p class="mb-1"><strong>Họ tên:</strong> @Model.User.FullName</p>
+                            <p class="mb-1"><strong>SĐT:</strong> @Model.User.PhoneNumber</p>
+                            <p class="mb-1"><strong>Hạng:</strong> <span class="text-danger fw-bold">@Model.User.Rank?.RankName</span></p>
+                        }
+                        else
+                        {
+                            <p class="text-muted italic">Khách vãng lai (không đăng nhập)</p>
+                        }
                     </div>
                 </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead class="bg-light">
+                            <tr class="text-center">
+                                <th>Món ăn</th>
+                                <th>Đơn giá</th>
+                                <th>SL</th>
+                                <th>Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var detail in Model.OrderDetails)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="~/images/@(detail.Product?.ImagePath ?? "no-image.png")"
+                                                 style="width: 40px; height: 40px; object-fit: cover;" class="rounded me-2">
+                                            <span class="fw-bold">@detail.Product?.ProductName</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">@detail.UnitPrice.ToString("N0")đ</td>
+                                    <td class="text-center">@detail.Quantity</td>
+                                    <td class="text-end fw-bold">@((detail.UnitPrice * detail.Quantity).ToString("N0"))đ</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Tổng cộng:</td>
+                                <td class="text-end fw-bold text-danger fs-5">@Model.TotalAmount.ToString("N0")đ</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                @if (Model.Status != "Paid" && Model.Status != "Cancelled")
+                {
+                    <div class="mt-4 p-3 bg-light rounded shadow-sm">
+                        <label class="form-label fw-bold text-dark"><i class="fas fa-edit me-1"></i>Cập nhật trạng thái mới:</label>
+                        <div class="input-group">
+                            <select id="statusSelect" class="form-select border-danger">
+                                <option value="Pending" selected="@(Model.Status == "Pending")">Chờ xác nhận</option>
+                                <option value="Processing" selected="@(Model.Status == "Processing")">Đang chế biến</option>
+                                <option value="Completed" selected="@(Model.Status == "Completed")">Đã phục vụ</option>
+                                <option value="Paid">Thanh toán & Giải phóng bàn</option>
+                                <option value="Cancelled">Hủy đơn hàng</option>
+                            </select>
+                            <button class="btn btn-danger px-4 btn-update-status" type="button" onclick="updateStatus(@Model.OrderId)">
+                                Xác nhận
+                            </button>
+                        </div>
+                        <small class="text-muted mt-2 d-block">
+                            * Lưu ý: Khi chuyển sang <strong>Paid</strong>, hệ thống sẽ tự động cộng điểm cho khách và đặt trạng thái bàn về <strong>Trống</strong>.
+                        </small>
+                    </div>
+                }
             </div>
             <div class="modal-footer border-0">
-                <button type="button" class="btn btn-primary px-5 rounded-pill" onclick="updateStatus(@Model.OrderId)">
-                    Xác nhận
-                </button>
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>

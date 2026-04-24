@@ -1,59 +1,79 @@
 ﻿@using Microsoft.AspNetCore.Http
 @model IEnumerable<DoAnCoSo.Models.CartItem>
 @{
-    ViewData["Title"] = "Giỏ hàng của bạn";
+    ViewData["Title"] = "Giỏ hàng";
     Layout = "_Layout";
-    var tableId = Context.Session.GetString("TableId") ?? Context.Request.Cookies["SavedTableId"];
+
+    // Ưu tiên lấy TableName từ món ăn trong Model, nếu Model trống thì lấy từ ViewBag
+    var displayTableName = Model.FirstOrDefault()?.Table?.TableName ?? ViewBag.TableName ?? "N/A";
 }
 
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>
-            <i class="fas fa-shopping-cart text-primary"></i> Giỏ hàng của bàn:
-            <span class="badge bg-danger">@(string.IsNullOrEmpty(tableId) ? "Chưa chọn" : tableId)</span>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <i class="fas fa-shopping-cart text-danger"></i> Giỏ hàng của:
+            @* Hiển thị tên bàn với style nổi bật *@
+            <span class="badge rounded-pill bg-danger shadow-sm px-3">
+                <i class="fas fa-chair me-1"></i> @displayTableName
+            </span>
         </h2>
-        <a href="@Url.Action("Index", "Menu")" class="btn btn-outline-primary shadow-sm">
-            <i class="fas fa-plus"></i> Thêm món khác
+        <a href="@Url.Action("Index", "Menu")" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
+            <i class="fas fa-chevron-left me-2"></i>Thêm món khác
         </a>
     </div>
+</div>
 
-    <div id="cart-container" class="card shadow-sm border-0">
-        <div class="card-body p-4">
+    <div id="cart-container" class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-0">
+            @* p-0 để bảng sát viền card nhìn hiện đại hơn *@
             @if (Model != null && Model.Any())
             {
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th>Món ăn</th>
-                                <th class="text-center">Giá</th>
-                                <th class="text-center" style="width: 150px;">Số lượng</th>
-                                <th class="text-end">Thành tiền</th>
-                                <th class="text-center">Thao tác</th>
+                                <th class="ps-4 py-3">Món ăn</th>
+                                <th class="text-center py-3">Giá</th>
+                                <th class="text-center py-3" style="width: 150px;">Số lượng</th>
+                                <th class="text-end py-3">Thành tiền</th>
+                                <th class="text-center py-3 pe-4">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td>
+                                    <td class="ps-4">
                                         <div class="d-flex align-items-center">
-                                            <img src="~/images/@item.Product.ImagePath" class="rounded mr-3"
-                                                 style="width: 60px; height: 60px; object-fit: cover;" onerror="this.src='/images/no-image.png'" />
-                                            <span class="fw-bold ms-2">@item.Product.ProductName</span>
+                                            <div class="position-relative">
+                                                <img src="~/images/@item.Product.ImagePath" class="rounded-3 shadow-sm"
+                                                     style="width: 70px; height: 70px; object-fit: cover;"
+                                                     onerror="this.src='/images/no-image.png'" />
+                                            </div>
+                                            <div class="ms-3">
+                                                <h6 class="mb-0 fw-bold">@item.Product.ProductName</h6>
+                                                <small class="text-muted">Đơn giá: @item.Product.Price.ToString("N0") đ</small>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td class="text-center">@item.Product.Price.ToString("N0") đ</td>
+                                    <td class="text-center fw-medium">@item.Product.Price.ToString("N0") đ</td>
                                     <td>
                                         <div class="input-group input-group-sm justify-content-center">
-                                            <button class="btn btn-outline-secondary" onclick="updateQuantity(@item.ProductId, -1)">-</button>
-                                            <input type="text" class="form-control text-center" value="@item.Quantity" style="max-width: 40px;" readonly>
-                                            <button class="btn btn-outline-secondary" onclick="updateQuantity(@item.ProductId, 1)">+</button>
+                                            <button class="btn btn-light border shadow-sm px-2" onclick="updateQuantity(@item.ProductId, -1)">
+                                                <i class="fas fa-minus fa-xs"></i>
+                                            </button>
+                                            <input type="text" class="form-control text-center fw-bold border-0 bg-transparent"
+                                                   value="@item.Quantity" style="max-width: 45px;" readonly>
+                                            <button class="btn btn-light border shadow-sm px-2" onclick="updateQuantity(@item.ProductId, 1)">
+                                                <i class="fas fa-plus fa-xs"></i>
+                                            </button>
                                         </div>
                                     </td>
-                                    <td class="text-end text-primary fw-bold">@((item.Quantity * item.Product.Price).ToString("N0")) đ</td>
-                                    <td class="text-center">
-                                        <button class="btn btn-link text-danger" onclick="removeItem(@item.ProductId)"><i class="fas fa-trash-alt"></i></button>
+                                    <td class="text-end text-danger fw-bold">@((item.Quantity * item.Product.Price).ToString("N0")) đ</td>
+                                    <td class="text-center pe-4">
+                                        <button class="btn btn-sm btn-link text-muted hover-danger" onclick="removeItem(@item.ProductId)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
                                     </td>
                                 </tr>
                             }
@@ -61,51 +81,110 @@
                     </table>
                 </div>
 
-                <div class="d-flex justify-content-end align-items-center mt-4 p-4 bg-light rounded">
-                    <div class="me-5 text-end">
-                        <p class="mb-0 text-muted small">TỔNG CỘNG:</p>
-                        <h2 class="text-danger fw-bold mb-0">@Model.Sum(x => x.Quantity * x.Product.Price).ToString("N0") đ</h2>
+                <div class="d-flex justify-content-between align-items-center p-4 bg-light border-top rounded-bottom-4">
+                    <div>
+                        <p class="text-muted mb-1 small text-uppercase fw-bold">Trạng thái bàn:</p>
+                        <span class="text-success"><i class="fas fa-circle fa-xs me-1"></i> Đang chọn món</span>
                     </div>
-                    <button onclick="confirmCheckout()" class="btn btn-success btn-lg px-5 shadow">XÁC NHẬN ĐẶT MÓN</button>
+                    <div class="text-end d-flex align-items-center">
+                        <div class="me-4">
+                            <span class="text-muted small d-block">TỔNG CỘNG:</span>
+                            <span class="h3 text-danger fw-bold mb-0">@Model.Sum(x => x.Quantity * x.Product.Price).ToString("N0") đ</span>
+                        </div>
+                        <button onclick="confirmCheckout()" class="btn btn-danger btn-lg px-5 py-3 rounded-pill shadow fw-bold">
+                            XÁC NHẬN ĐẶT MÓN
+                        </button>
+                    </div>
                 </div>
             }
             else
             {
                 <div class="text-center py-5">
-                    <p class="h4 text-muted">Giỏ hàng trống!</p>
-                    <a href="@Url.Action("Index", "Menu")" class="btn btn-primary mt-3">Quay lại Menu</a>
+                    <img src="https://cdn-icons-png.flaticon.com/512/11329/11329060.png" style="width: 150px; opacity: 0.5" class="mb-4">
+                    <h4 class="text-muted fw-bold">Giỏ hàng của bạn đang trống</h4>
+                    <p class="text-muted">Hãy chọn những món ăn ngon từ thực đơn nhé!</p>
+                    <a href="@Url.Action("Index", "Menu")" class="btn btn-danger rounded-pill px-5 mt-2">Xem Menu ngay</a>
                 </div>
             }
         </div>
     </div>
 </div>
 
+<style>
+    .hover-danger:hover {
+        color: #dc3545 !important;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #fffafb;
+    }
+
+    .badge.bg-danger {
+        font-size: 0.9rem;
+        padding: 0.6em 1.2em;
+    }
+</style>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function updateQuantity(pId, change) {
-            $.post('/Customer/Cart/UpdateQuantity', { productId: pId, change: change }, () => location.reload());
+            // Hiện loading nhẹ
+            $.post('/Customer/Cart/UpdateQuantity', { productId: pId, change: change }, function() {
+                location.reload();
+            });
         }
 
-        function removeItem(pId) {
-            if(confirm("Xóa món này?")) $.post('/Customer/Cart/RemoveItem', { productId: pId }, () => location.reload());
+        function removeItem(productId) {
+            Swal.fire({
+                title: 'Xóa món ăn?',
+                text: "Bạn có chắc muốn bỏ món này khỏi giỏ hàng?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Đồng ý xóa',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('/Customer/Cart/RemoveItem', { productId: productId }, function (response) {
+                        if (response.success) {
+                            location.reload();
+                        }
+                    });
+                }
+            });
         }
 
         function confirmCheckout() {
             Swal.fire({
-                title: 'Xác nhận đơn hàng?',
-                text: "Món ăn sẽ được chuyển xuống bếp!",
+                title: 'Xác nhận đặt món?',
+                text: "Yêu cầu của bạn sẽ được gửi trực tiếp đến nhà bếp!",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Đặt món ngay'
+                confirmButtonColor: '#198754',
+                confirmButtonText: 'Đúng, đặt ngay!',
+                cancelButtonText: 'Để tôi xem lại'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Đang xử lý...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading() }
+                    });
+
                     $.post('/Customer/Cart/Checkout', function (res) {
                         if (res.success) {
-                            Swal.fire('Thành công', 'Đang chuyển đơn hàng đến bếp!', 'success')
-                            .then(() => window.location.href = '/Customer/Order/OrderDetails/' + res.orderId);
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Đặt món thành công!',
+                                text: 'Vui lòng đợi trong giây lát, bếp đang chuẩn bị.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = '/Customer/Order/OrderHistory'; // Chuyển về lịch sử để theo dõi
+                            });
                         } else {
-                            Swal.fire('Lỗi', res.message, 'error');
+                            Swal.fire('Thất bại', res.message, 'error');
                         }
                     });
                 }

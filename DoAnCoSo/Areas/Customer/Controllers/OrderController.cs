@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace DoAnCoSo.Areas.Customer.Controllers
 {
@@ -20,13 +21,20 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             _userManager = userManager;
         }
 
-        // Trang hiển thị chi tiết đơn hàng sau khi đặt thành công
+        // 1. Trang hiển thị chi tiết đơn hàng
         public async Task<IActionResult> OrderDetails(int id)
         {
+            // Lấy ID người dùng an toàn
+            var userIdString = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdString)) return Challenge();
+            int userId = int.Parse(userIdString);
+
             var order = await _context.Orders
-                .Include(o => o.Table)
+                .Include(o => o.Table)           // Nạp thông tin bàn để lấy TableName
                 .Include(o => o.OrderDetails)
                     .ThenInclude(od => od.Product)
+                .Include(o => o.User)
+                    .ThenInclude(u => u.Rank)
                 .FirstOrDefaultAsync(m => m.OrderId == id);
 
             if (order == null)
@@ -34,20 +42,29 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 return NotFound();
             }
 
+            // Bảo mật: Chỉ cho phép người sở hữu đơn hàng xem
+            if (order.UserId != userId)
+            {
+                return Forbid();
+            }
+
+            // Truyền TableName ra View qua ViewBag để hiển thị tiêu đề đẹp hơn nếu cần
+            ViewBag.TableName = order.Table?.TableName ?? "N/A";
+
             return View(order);
         }
 
-        // (Tùy chọn) Trang danh sách đơn hàng đã đặt của bàn hiện tại
-        [Authorize]
+        // 2. Trang danh sách lịch sử đơn hàng của User
         public async Task<IActionResult> History()
         {
-            // Lấy Id của user đang đăng nhập
             var userIdString = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(userIdString)) return Challenge();
             int userId = int.Parse(userIdString);
 
+            // Lấy danh sách đơn hàng kèm thông tin bàn
             var orders = await _context.Orders
-                .Where(o => o.UserId == userId) // Lọc theo User thay vì Table
+                .Include(o => o.Table) // Quan trọng: Để lấy TableName hiển thị thay vì ID
+                .Where(o => o.UserId == userId)
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
 

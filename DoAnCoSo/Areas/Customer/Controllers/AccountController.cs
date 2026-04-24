@@ -79,27 +79,35 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
         [HttpPost]
         [HttpPost]
+        // Areas/Customer/Controllers/AccountController.cs
+        [HttpPost]
         public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
         {
-            ViewData["ReturnUrl"] = returnUrl;
             if (ModelState.IsValid)
             {
                 var result = await _signInManager.PasswordSignInAsync(model.Phone, model.Password, model.RememberMe, false);
 
                 if (result.Succeeded)
                 {
-                    // KHÔI PHỤC SESSION BÀN TỪ COOKIE SAU KHI ĐĂNG NHẬP
+                    // A. Khôi phục session bàn từ Cookie (nếu có)
                     var tableIdFromCookie = Request.Cookies["SavedTableId"];
                     if (!string.IsNullOrEmpty(tableIdFromCookie))
                     {
                         HttpContext.Session.SetString("TableId", tableIdFromCookie);
                     }
 
-                    if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+                    // B. Điều hướng quan trọng:
+                    // Nếu có returnUrl (ví dụ: /Customer/Table/AccessTable/5), hãy quay lại đó
+                    if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                    {
+                        return Redirect(returnUrl);
+                    }
 
+                    // Nếu không có returnUrl thì mới phân quyền về Home Admin/Customer
                     var user = await _userManager.FindByNameAsync(model.Phone);
                     var roles = await _userManager.GetRolesAsync(user);
-                    if (roles.Contains("Admin")) return RedirectToAction("Index", "Home", new { area = "Admin" });
+                    if (roles.Contains("Admin"))
+                        return RedirectToAction("Index", "Home", new { area = "Admin" });
 
                     return RedirectToAction("Index", "Home", new { area = "Customer" });
                 }

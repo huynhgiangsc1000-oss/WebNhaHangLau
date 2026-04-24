@@ -36,23 +36,34 @@
 
 @foreach (var table in Model)
 {
+    bool isOccupied = table.Status == "Occupied";
+
     <div class="modal fade" id="qrModal-@table.TableId" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title w-100 text-center fw-bold">Mã QR của bàn</h5>
+                    <h5 class="modal-title w-100 text-center fw-bold">Thông tin @table.TableName</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center p-4">
-                    @if (!string.IsNullOrEmpty(table.QrCode))
+                    @if (isOccupied)
+                    {
+                        <div class="py-3">
+                            <i class="bi bi-person-fill-lock display-4 text-danger"></i>
+                            <p class="mt-3 fw-bold text-danger">Bàn này hiện đang có khách!</p>
+                            <p class="text-muted small">Vui lòng chọn bàn khác hoặc liên hệ nhân viên nếu bạn muốn ghép bàn.</p>
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(table.QrCode))
                     {
                         <img src="@table.QrCode" class="img-fluid mb-3 p-2 border rounded" style="max-width: 250px;" />
                         <p class="text-muted small">Quét mã để bắt đầu đặt món cho <strong>@table.TableName</strong></p>
 
                         <div class="mt-3">
-                            <a href="@Url.Action("Index", "Menu", new { area = "Customer", tableId = table.TableId })"
-                               class="btn btn-primary btn-sm rounded-pill">
-                                <i class="bi bi-qr-code-scan"></i> Giả lập quét mã này
+                            @* LINK QUAN TRỌNG: Phải dẫn về AccessTable để kiểm tra Login *@
+                            <a href="@Url.Action("AccessTable", "Table", new { area = "Customer", id = table.TableId })"
+                               class="btn btn-primary btn-sm rounded-pill px-4">
+                                <i class="bi bi-qr-code-scan me-2"></i>Giả lập quét mã này
                             </a>
                         </div>
                     }
@@ -60,7 +71,7 @@
                     {
                         <div class="py-4 text-secondary">
                             <i class="bi bi-qr-code-scan display-1"></i>
-                            <p class="mt-2">Chưa cập nhật mã QR</p>
+                            <p class="mt-2">Chưa cập nhật mã QR cho bàn này</p>
                         </div>
                     }
                 </div>
@@ -121,6 +132,7 @@
             border-color: #dc3545 !important;
             color: #dc3545 !important;
             background-color: #fff8f8;
+            opacity: 0.8;
         }
 
         .modal-content {

@@ -22,6 +22,15 @@
                         </div>
 
                         <div class="mb-4">
+                            <label asp-for="Capacity" class="form-label fw-bold">Sức chứa (Số người tối đa)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-2 border-end-0"><i class="bi bi-people text-muted"></i></span>
+                                <input asp-for="Capacity" type="number" min="1" class="form-control form-control-lg border-2 border-start-0" placeholder="Ví dụ: 2, 4, 10..." />
+                            </div>
+                            <span asp-validation-for="Capacity" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-4">
                             <label asp-for="Status" class="form-label fw-bold">Trạng thái ban đầu</label>
                             <select asp-for="Status" class="form-select border-2">
                                 <option value="Empty">Còn trống</option>

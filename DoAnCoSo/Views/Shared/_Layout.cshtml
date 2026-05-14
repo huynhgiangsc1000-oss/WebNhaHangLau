@@ -13,7 +13,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     @await RenderSectionAsync("Styles", required: false)
 
     <style>
@@ -163,7 +164,7 @@
         <div class="d-flex">
             <aside class="admin-sidebar shadow">
                 <div class="p-4 text-center">
-                    <h4 class="text-white fw-bold mb-0">MANWAH <span class="text-danger">CP</span></h4>
+                    <h4 class="text-white fw-bold mb-0">MANWAH <span class="text-danger">江安火锅</span></h4>
                     <p class="text-muted small mt-1">Management System</p>
                 </div>
 
@@ -180,15 +181,23 @@
                     <a class="nav-link-admin @(controller == "Table" ? "active" : "")" asp-area="Admin" asp-controller="Table" asp-action="Index">
                         <i class="bi bi-layers me-3"></i> Quản lý bàn
                     </a>
+                    @* Có thể thêm BookingManager tại đây nếu cần *@
+                    <a class="nav-link-admin @(controller == "BookingManager" ? "active" : "")" asp-area="Admin" asp-controller="BookingManager" asp-action="Index">
+                        <i class="bi bi-calendar-check me-3"></i> Đặt bàn
+                    </a>
 
                     @if (User.IsInRole("Admin"))
                     {
-                        <small class="text-uppercase text-secondary fw-bold px-4 mb-2 mt-4 d-block" style="font-size: 10px; letter-spacing: 2px;">Catalog</small>
+                        <small class="text-uppercase text-secondary fw-bold px-4 mb-2 mt-4 d-block" style="font-size: 10px; letter-spacing: 2px;">Catalog & Marketing</small>
                         <a class="nav-link-admin @(controller == "Product" ? "active" : "")" asp-area="Admin" asp-controller="Product" asp-action="Index">
                             <i class="bi bi-egg-fried me-3"></i> Món ăn
                         </a>
                         <a class="nav-link-admin @(controller == "Category" ? "active" : "")" asp-area="Admin" asp-controller="Category" asp-action="Index">
                             <i class="bi bi-tags me-3"></i> Loại món
+                        </a>
+                        @* Nút quản lý Voucher/Ưu đãi *@
+                        <a class="nav-link-admin @(controller == "Promotion" ? "active" : "")" asp-area="Admin" asp-controller="Promotion" asp-action="Index">
+                            <i class="bi bi-ticket-perforated me-3"></i> Khuyến mãi
                         </a>
 
                         <small class="text-uppercase text-secondary fw-bold px-4 mb-2 mt-4 d-block" style="font-size: 10px; letter-spacing: 2px;">People</small>
@@ -251,7 +260,11 @@
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item"><a class="nav-link nav-link-custom" asp-area="Customer" asp-controller="Menu" asp-action="Index">THỰC ĐƠN</a></li>
                         <li class="nav-item"><a class="nav-link nav-link-custom" asp-area="Customer" asp-controller="Table" asp-action="Index">SƠ ĐỒ BÀN</a></li>
-                        <li class="nav-item"><a class="nav-link nav-link-custom" href="#">ƯU ĐÃI</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="Customer" asp-controller="Promotion" asp-action="Index">
+                                <i class="bi bi-gift-fill text-danger"></i> Ưu đãi
+                            </a>
+                        </li>
                     </ul>
 
                     <div class="d-flex align-items-center gap-3">
@@ -260,6 +273,9 @@
                             <div class="d-none d-md-block text-end me-2">
                                 <small class="text-muted d-block" style="font-size: 10px;">Chào mừng,</small>
                                 <span class="fw-bold small">@User.Identity.Name</span>
+                                <a asp-area="Customer" asp-controller="Booking" asp-action="History" class="mw-icon-circle shadow-sm" title="Lịch sử đặt bàn">
+                                    <i class="bi bi-calendar-check"></i>
+                                </a>
                             </div>
 
                             @if (!string.IsNullOrEmpty(tableName))
@@ -283,7 +299,7 @@
                             <a class="btn btn-outline-dark border-0 fw-bold small rounded-pill px-4" asp-area="Customer" asp-controller="Account" asp-action="Login">ĐĂNG NHẬP</a>
                         }
 
-                        <a asp-area="Customer" asp-controller="Table" asp-action="Index" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm border-0">
+                        <a asp-area="Customer" asp-controller="Booking" asp-action="Index" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm border-0">
                             ĐẶT BÀN
                         </a>
                     </div>
@@ -312,6 +328,8 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
 
     <script>
         $(document).ready(function () {

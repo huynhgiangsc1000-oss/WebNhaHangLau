@@ -20,7 +20,8 @@ namespace DoAnCoSo.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
-
+        public DbSet<Booking> Bookings { get; set; }
+        public DbSet<Promotion> Promotions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

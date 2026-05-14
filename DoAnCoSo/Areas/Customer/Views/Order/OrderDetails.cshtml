@@ -1,152 +1,139 @@
 ﻿@model DoAnCoSo.Models.Order
-
 @{
-    ViewData["Title"] = "Chi tiết đơn hàng";
+    ViewData["Title"] = "Chi tiết hóa đơn";
     Layout = "_Layout";
+
+    // Lấy phần trăm giảm giá từ Rank và Voucher
+    decimal rankPercent = Model.User?.Rank?.DiscountPercent ?? 0;
+    decimal promoPercent = Model.Promotion?.DiscountValue ?? 0;
+
+    // CHỈ LẤY GIÁ TRỊ CAO NHẤT (Không cộng dồn)
+    decimal appliedPercent = Math.Max(rankPercent, promoPercent);
+
+    decimal discountAmount = Model.TotalAmount * (appliedPercent / 100m);
+    decimal finalPrice = Model.TotalAmount - discountAmount;
 }
 
+@Html.AntiForgeryToken()
+
 <div class="container mt-4 mb-5">
+    @if (Context.Request.Query.ContainsKey("error"))
+    {
+        <div class="alert alert-danger alert-dismissible fade show rounded-4 mb-4 shadow-sm" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Thanh toán thất bại!</strong> Vui lòng kiểm tra lại số dư hoặc thẻ của bạn.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-        @* Header trang chi tiết *@
         <div class="card-header bg-white border-0 py-4">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h2 class="fw-bold text-dark mb-1">Chi tiết đơn hàng</h2>
-                    <p class="text-muted mb-0">
-                        Phục vụ tại: <span class="badge bg-danger rounded-pill px-3">@(Model.Table?.TableName ?? "N/A")</span>
-                        | Mã đơn: #@Model.OrderId
-                    </p>
+                    <p class="text-muted mb-0">Bàn: <span class="badge bg-danger">@(Model.Table?.TableName ?? "N/A")</span> | Mã: #@Model.OrderId</p>
                 </div>
                 <div class="text-end">
-                    @{
-                        var statusClass = Model.Status switch
-                        {
-                            "Pending" => "bg-warning text-dark",
-                            "Confirmed" => "bg-info text-white",
-                            "Processing" => "bg-primary text-white",
-                            "Completed" => "bg-success text-white",
-                            _ => "bg-secondary text-white"
-                        };
-                        var statusText = Model.Status switch
-                        {
-                            "Pending" => "Đang chờ xác nhận",
-                            "Confirmed" => "Đã xác nhận đơn",
-                            "Processing" => "Đang chế biến",
-                            "Completed" => "Đã hoàn thành",
-                            _ => Model.Status
-                        };
-                    }
-                    <span class="badge @statusClass p-2 px-4 rounded-pill fs-6 shadow-sm">
-                        <i class="fas fa-info-circle me-1"></i> @statusText
-                    </span>
+                    <span class="badge @(Model.Status == "Completed" ? "bg-success" : "bg-warning") p-2 px-4 rounded-pill">@Model.Status</span>
+                    <div class="small text-muted mt-1">@Model.OrderDate.ToString("dd/MM/yyyy HH:mm")</div>
                 </div>
             </div>
         </div>
 
         <div class="card-body p-4 pt-0">
-            <div class="row">
-                @* Danh sách món ăn đã đặt *@
+            <div class="row g-4">
+                <!-- Danh sách món ăn -->
                 <div class="col-lg-8">
-                    <div class="table-responsive rounded-3 border">
-                        <table class="table table-hover align-middle mb-0">
+                    <div class="table-responsive border rounded-4 bg-white">
+                        <table class="table align-middle mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4">Món ăn</th>
-                                    <th class="text-center">Số lượng</th>
-                                    <th class="text-end">Đơn giá</th>
-                                    <th class="text-end pe-4">Thành tiền</th>
+                                    <th class="ps-4 py-3 border-0">Món ăn</th>
+                                    <th class="text-center border-0">Số lượng</th>
+                                    <th class="text-end pe-4 border-0">Thành tiền</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var item in Model.OrderDetails)
                                 {
                                     <tr>
-                                        <td class="ps-4">
-                                            <div class="d-flex align-items-center py-2">
-                                                <img src="~/images/@item.Product.ImagePath" class="rounded-3"
-                                                     style="width: 50px; height: 50px; object-fit: cover;"
-                                                     onerror="this.src='/images/no-image.png'" />
-                                                <div class="ms-3">
+                                        <td class="ps-4 py-3">
+                                            <div class="d-flex align-items-center">
+                                                <img src="~/images/@(item.Product?.ImagePath ?? "no-image.png")" class="rounded-3 me-3 shadow-sm" style="width:60px; height:60px; object-fit:cover;" />
+                                                <div>
                                                     <span class="fw-bold d-block text-dark">@item.Product.ProductName</span>
-                                                    <small class="text-muted">Mã món: #@item.ProductId</small>
+                                                    <small class="text-muted">@item.UnitPrice.ToString("N0") đ</small>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="text-center fw-bold">x @item.Quantity</td>
-                                        <td class="text-end">@item.UnitPrice.ToString("N0") đ</td>
-                                        <td class="text-end pe-4 text-danger fw-bold">
-                                            @((item.Quantity * item.UnitPrice).ToString("N0")) đ
-                                        </td>
+                                        <td class="text-center fw-bold text-primary">x @item.Quantity</td>
+                                        <td class="text-end pe-4 fw-bold">@((item.Quantity * item.UnitPrice).ToString("N0")) đ</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
                     </div>
-
-                    <div class="mt-4 p-3 bg-light rounded-3">
-                        <p class="small text-muted mb-0">
-                            <i class="fas fa-clock me-2"></i>Thời gian đặt món: @Model.OrderDate.ToString("dd/MM/yyyy HH:mm:ss")
-                        </p>
-                    </div>
                 </div>
 
-                @* Cột thanh toán *@
-                <div class="col-lg-4 mt-4 mt-lg-0">
-                    <div class="card bg-white border shadow-sm rounded-4">
-                        <div class="card-body p-4">
-                            <h5 class="fw-bold mb-4 border-bottom pb-2">Tóm tắt thanh toán</h5>
+                <!-- Chi tiết thanh toán -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-4 bg-light p-2">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-4">Chi tiết thanh toán</h5>
 
-                            <div class="d-flex justify-content-between mb-3 text-muted">
-                                <span>Tổng tiền món:</span>
-                                <span class="fw-bold text-dark">@Model.TotalAmount.ToString("N0") đ</span>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Tạm tính:</span>
+                                <span class="fw-bold">@Model.TotalAmount.ToString("N0") đ</span>
                             </div>
 
-                            @* Ưu đãi Rank *@
-                            <div class="py-3 border-top border-bottom my-3">
-                                <label class="small fw-bold text-uppercase text-muted d-block mb-2">Ưu đãi thành viên</label>
-                                @if (Model.User?.Rank != null)
-                                {
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="text-success fw-medium">
-                                            <i class="fas fa-award me-1"></i> @Model.User.Rank.RankName
-                                        </span>
-                                        <span class="badge bg-success">- @Model.User.Rank.DiscountPercent%</span>
+                            @if (appliedPercent > 0)
+                            {
+                                <div class="d-flex justify-content-between mb-1 text-success fw-bold">
+                                    <span>
+                                        <i class="fas fa-percentage me-1"></i>
+                                        Ưu đãi áp dụng:
+                                    </span>
+                                    <span>- @appliedPercent%</span>
+                                </div>
+                                <div class="small text-muted mb-3 italic">
+                                    (@(appliedPercent == rankPercent ? "Áp dụng theo hạng " + Model.User?.Rank?.RankName : "Áp dụng theo mã ưu đãi"))
+                                </div>
+                            }
+
+                            <!-- Ô nhập mã giảm giá -->
+                            @if (Model.Status != "Completed" && Model.Status != "Paid")
+                            {
+                                <div class="mt-3 mb-3 p-3 bg-white rounded-3 border border-dashed">
+                                    <label class="small fw-bold text-muted mb-2">Sử dụng mã giảm giá</label>
+                                    <div class="input-group">
+                                        <input type="text" id="couponInput" class="form-control form-control-sm" placeholder="Nhập mã..." value="@Model.Promotion?.CouponCode">
+                                        <button class="btn btn-dark btn-sm px-3" type="button" onclick="applyCoupon(@Model.OrderId)">Áp dụng</button>
                                     </div>
-                                }
-                                else
-                                {
-                                    <p class="small text-muted mb-0">Khách hàng phổ thông</p>
-                                }
-                            </div>
-
-                            @* Tổng cuối *@
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <span class="h5 mb-0 fw-bold">Thành tiền:</span>
-                                <div class="text-end">
-                                    @{
-                                        decimal discountPercent = Model.User?.Rank?.DiscountPercent ?? 0;
-                                        decimal finalPrice = Model.TotalAmount * (1 - (discountPercent / 100));
-                                    }
-                                    <span class="h3 text-danger fw-bold d-block mb-0">@finalPrice.ToString("N0") đ</span>
-                                    <small class="text-muted">(Đã bao gồm VAT)</small>
+                                    <div id="promoMsg" class="small mt-1"></div>
                                 </div>
+                            }
+
+                            <hr class="my-4">
+
+                            <div class="d-flex justify-content-between mb-4 align-items-center">
+                                <span class="h5 fw-bold mb-0">Tổng cộng:</span>
+                                <span class="h3 text-danger fw-bold mb-0">@finalPrice.ToString("N0") đ</span>
                             </div>
 
-                            <div class="mb-4">
-                                <label class="small fw-bold mb-2">Phương thức thanh toán:</label>
-                                <div class="p-3 border rounded-3 bg-light">
-                                    <i class="fas fa-money-bill-wave text-success me-2"></i> Tiền mặt tại quầy
+                            @if (Model.Status != "Completed")
+                            {
+                                <div class="mb-4">
+                                    <label class="small fw-bold text-muted mb-2">Phương thức thanh toán</label>
+                                    <select class="form-select form-select-lg border-2 rounded-3 fs-6" id="paymentMethod">
+                                        <option value="Tiền mặt">💵 Tiền mặt tại quầy</option>
+                                        <option value="VNPAY">💳 Ví điện tử VNPAY</option>
+                                    </select>
                                 </div>
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button onclick="window.print()" class="btn btn-dark btn-lg rounded-pill fw-bold py-3 shadow-sm">
-                                    <i class="fas fa-print me-2"></i>IN HÓA ĐƠN
-                                </button>
-                                <a href="@Url.Action("History", "Order")" class="btn btn-outline-secondary rounded-pill py-2">
-                                    Quay lại lịch sử
-                                </a>
-                            </div>
+                                <div class="d-grid gap-3">
+                                    <button type="button" onclick="confirmPayment(@Model.OrderId)" class="btn btn-danger fw-bold py-3 rounded-pill shadow">XÁC NHẬN THANH TOÁN</button>
+                                    <a href="@Url.Action("Index", "Menu")" class="btn btn-outline-dark rounded-pill fw-bold py-2">ĐẶT THÊM MÓN</a>
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
@@ -155,37 +142,84 @@
     </div>
 </div>
 
-<style>
-    .card-header {
-        border-bottom: 1px solid #f8f9fa !important;
-    }
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Hàm áp dụng Voucher
+        function applyCoupon(orderId) {
+            const code = $('#couponInput').val();
+            if (!code) return;
 
-    .table thead th {
-        border-top: none;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .rounded-4 {
-        border-radius: 1rem !important;
-    }
-
-    @@media print {
-        .btn, .badge, .card-header div:last-child {
-            display: none !important;
+            $.post('@Url.Action("ApplyPromotion", "Order", new { area = "Customer" })',
+                { orderId: orderId, couponCode: code },
+                function (res) {
+                    if (res.success) {
+                        Swal.fire({
+                            title: 'Thành công!',
+                            text: res.message,
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => location.reload());
+                    } else {
+                        $('#promoMsg').text(res.message).addClass('text-danger');
+                    }
+                }
+            );
         }
 
-        .container {
-            width: 100%;
-            max-width: none;
-            margin: 0;
-            padding: 0;
+        function confirmPayment(orderId) {
+             const method = $('#paymentMethod').val();
+             const token = $('input[name="__RequestVerificationToken"]').val();
+
+             // Nếu chọn VNPAY thì đi tới trang thanh toán online
+             if (method === "VNPAY") {
+                 window.location.href = '@Url.Action("PayVnpay", "Order", new { area = "Customer" })' + '?orderId=' + orderId;
+                 return;
+             }
+
+             // Nếu chọn Tiền mặt
+             Swal.fire({
+                 title: 'Xác nhận thanh toán?',
+                 text: "Yêu cầu thanh toán tiền mặt sẽ được gửi đến quầy. Bàn của bạn sẽ được giữ cho đến khi hoàn tất tại quầy.",
+                 icon: 'info',
+                 showCancelButton: true,
+                 confirmButtonColor: '#dc3545',
+                 confirmButtonText: 'Đồng ý',
+                 cancelButtonText: 'Hủy'
+             }).then((result) => {
+                 if (result.isConfirmed) {
+                     // Gọi hàm RequestCashPayment để báo cho Admin
+                     $.post('@Url.Action("RequestCashPayment", "Order", new { area = "Customer" })',
+                     {
+                         orderId: orderId,
+                         __RequestVerificationToken: token
+                     },
+                     function (res) {
+                         if (res.success) {
+                             Swal.fire({
+                                 title: 'Thành công!',
+                                 text: res.message,
+                                 icon: 'success'
+                             }).then(() => {
+                                 // Sau khi khách nhấn OK, đẩy họ về trang lịch sử đơn hàng
+                                 window.location.href = '@Url.Action("History", "Order")';
+                             });
+                         } else {
+                             Swal.fire('Lỗi', res.message, 'error');
+                         }
+                     });
+                 }
+             });
+         }
+    </script>
+    <style>
+        .border-dashed {
+            border-style: dashed !important;
         }
 
-        .card {
-            border: none !important;
-            box-shadow: none !important;
+        .italic {
+            font-style: italic;
         }
-    }
-</style>
+    </style>
+}

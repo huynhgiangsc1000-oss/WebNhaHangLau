@@ -1,0 +1,132 @@
+﻿@model DoAnCoSo.Models.Order
+@{
+    // Kiểm tra Rank của User
+    decimal rankPercent = 0;
+    if (Model.User != null && Model.User.Rank != null)
+    {
+        rankPercent = Model.User.Rank.DiscountPercent;
+    }
+
+    // Kiểm tra Promotion
+    decimal promoPercent = 0;
+    if (Model.Promotion != null)
+    {
+        promoPercent = Model.Promotion.DiscountValue;
+    }
+
+    // Chỉ lấy mức giảm giá cao nhất[cite: 1]
+    decimal appliedPercent = Math.Max(rankPercent, promoPercent);
+
+    decimal discountAmount = Model.TotalAmount * (appliedPercent / 100m);
+    decimal finalPrice = Model.TotalAmount - discountAmount;
+}
+
+<div class="container my-5">
+    <div class="card shadow p-4 mx-auto" style="max-width: 700px; border-top: 5px solid #c0392b;">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-uppercase" style="color: #c0392b;">江安火锅 Manwah</h2>
+            <p class="mb-0 fw-bold">HÓA ĐƠN THANH TOÁN</p>
+            <small class="text-muted">Ngày: @Model.OrderDate.ToString("dd/MM/yyyy HH:mm")</small>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-6">
+                <strong>Mã đơn:</strong> #@Model.OrderId<br />
+                <strong>Bàn:</strong> <span class="badge bg-dark">@Model.Table?.TableName</span>
+            </div>
+            <div class="col-6 text-end">
+                <strong>Khách hàng:</strong> @(Model.User?.FullName ?? "Khách vãng lai")<br />
+                <strong>Phương thức:</strong> @(Model.PaymentMethod ?? "Tiền mặt")
+            </div>
+        </div>
+
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Món ăn</th>
+                    <th class="text-center">SL</th>
+                    <th class="text-end">Đơn giá</th>
+                    <th class="text-end">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.OrderDetails)
+                {
+                    <tr>
+                        <td>@item.Product.ProductName</td>
+                        <td class="text-center">@item.Quantity</td>
+                        <td class="text-end">@item.UnitPrice.ToString("N0")</td>
+                        <td class="text-end">@((item.UnitPrice * item.Quantity).ToString("N0"))</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="table-group-divider">
+                <tr>
+                    <th colspan="3" class="text-end border-0">Tổng tiền món:</th>
+                    <th class="text-end border-0">@Model.TotalAmount.ToString("N0") đ</th>
+                </tr>
+
+                @if (appliedPercent > 0)
+                {
+                    <tr>
+                        <th colspan="3" class="text-end border-0 text-success">
+                            Giảm giá (@(appliedPercent == rankPercent ? "Hạng " + Model.User?.Rank?.RankName : "Voucher " + Model.Promotion?.CouponCode)):
+                        </th>
+                        <th class="text-end border-0 text-success">- @appliedPercent%</th>
+                    </tr>
+                    <tr>
+                        <th colspan="3" class="text-end border-0 text-success">Số tiền giảm:</th>
+                        <th class="text-end border-0 text-success">- @discountAmount.ToString("N0") đ</th>
+                    </tr>
+                }
+
+                <tr style="font-size: 1.2rem;">
+                    <th colspan="3" class="text-end border-0">THÀNH TIỀN:</th>
+                    <th class="text-end border-0 text-danger">@finalPrice.ToString("N0") đ</th>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="text-center mt-3 small italic">
+            <p>
+                Cảm ơn Quý khách và hẹn gặp lại!<br />
+                Mọi thắc mắc vui lòng liên hệ quầy thu ngân.
+            </p>
+        </div>
+
+        <div class="text-center mt-4 no-print">
+            <button onclick="window.print()" class="btn btn-outline-secondary me-2 shadow-sm">
+                <i class="fas fa-print"></i> In hóa đơn
+            </button>
+            <a href="/" class="btn btn-danger shadow-sm">Quay lại trang chủ</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .italic {
+        font-style: italic;
+    }
+
+    @@media print {
+        .no-print {
+            display: none !important;
+        }
+
+        .container {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        body {
+            background-color: white !important;
+        }
+    }
+</style>

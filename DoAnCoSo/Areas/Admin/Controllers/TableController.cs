@@ -22,6 +22,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         public async Task<IActionResult> Index()
         {
             var tables = await _context.Tables
+                .Include(t => t.Bookings) // THÊM DÒNG NÀY: Để lấy danh sách đơn đặt bàn
                 .OrderBy(t => t.TableName)
                 .ToListAsync();
             return View(tables);
@@ -36,7 +37,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         // 3. POST: Xử lý thêm bàn mới và tự động sinh mã QR
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("TableName,Status")] Table table)
+        public async Task<IActionResult> Create([Bind("TableName,Capacity,Status")] Table table)
         {
             // Kiểm tra xem tên bàn đã tồn tại chưa
             if (await _context.Tables.AnyAsync(t => t.TableName == table.TableName))

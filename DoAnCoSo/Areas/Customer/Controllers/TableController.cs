@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using DoAnCoSo.Data;
 using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using System;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace DoAnCoSo.Areas.Customer.Controllers
 {
@@ -10,57 +14,76 @@ namespace DoAnCoSo.Areas.Customer.Controllers
     public class TableController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<User> _userManager;
 
-        public TableController(ApplicationDbContext context)
+        public TableController(ApplicationDbContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
-        // 1. Hiển thị sơ đồ bàn cho khách hàng xem trạng thái (Xanh/Đỏ)
+        /// <summary>
+        /// Hiển thị sơ đồ nhà hàng
+        /// </summary>
         public async Task<IActionResult> Index()
         {
-            // Sắp xếp bàn theo tên để khách dễ tìm
-            var tables = await _context.Tables.OrderBy(t => t.TableName).ToListAsync();
+            var tables = await _context.Tables
+                .Include(t => t.Bookings)
+                .OrderBy(t => t.TableName)
+                .ToListAsync();
             return View(tables);
         }
 
-        // 2. Xử lý khi khách chọn bàn thủ công từ sơ đồ hoặc quét mã QR
+        /// <summary>
+        /// Xử lý khi khách quét mã QR hoặc nhấn chọn bàn
+        /// </summary>
         [HttpGet]
-        // Areas/Customer/Controllers/TableController.cs
-        [HttpGet]
-        // Areas/Customer/Controllers/TableController.cs
         [HttpGet]
         public async Task<IActionResult> AccessTable(int id)
         {
-            // 1. Nếu chưa đăng nhập, chuyển hướng sang trang Login
             if (!User.Identity.IsAuthenticated)
             {
-                // Quan trọng: returnUrl phải dẫn về đúng Action này kèm theo ID của bàn
                 string returnUrl = Url.Action("AccessTable", "Table", new { area = "Customer", id = id });
-
-                return RedirectToAction("Login", "Account", new
-                {
-                    area = "Customer",
-                    returnUrl = returnUrl
-                });
+                return RedirectToAction("Login", "Account", new { area = "Customer", returnUrl = returnUrl });
             }
 
-            // 2. Nếu đã đăng nhập, tiến hành nhận bàn
+            var user = await _userManager.GetUserAsync(User);
             var table = await _context.Tables.FindAsync(id);
             if (table == null) return NotFound();
 
-            // Lưu vào Session và Cookie
-            HttpContext.Session.SetString("TableId", id.ToString());
-
-            CookieOptions option = new CookieOptions
+            if (table.Status == "Occupied")
             {
-                Expires = DateTime.Now.AddDays(1),
+                var hasActiveOrder = await _context.Orders
+                    .AnyAsync(o => o.TableId == id && o.UserId == user.Id && (o.Status == "Pending" || o.Status == "Processing"));
+
+                var hasCheckedInBooking = await _context.Bookings
+                    .AnyAsync(b => b.TableId == id && b.UserId == user.Id && b.Status == "CheckedIn");
+
+                // Nếu bàn đỏ nhưng không phải của mình
+                if (!hasActiveOrder && !hasCheckedInBooking)
+                {
+                    TempData["Error"] = "Bàn này đang được phục vụ khách khác!";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            // Khách vãng lai quét bàn trống hoặc khách đặt quét bàn Reserved
+            if (table.Status == "Empty" || table.Status == "Reserved")
+            {
+                table.Status = "Occupied";
+                _context.Update(table);
+                await _context.SaveChangesAsync();
+            }
+
+            // Thiết lập Session & Cookie
+            HttpContext.Session.SetString("TableId", id.ToString());
+            Response.Cookies.Append("SavedTableId", id.ToString(), new CookieOptions
+            {
+                Expires = DateTimeOffset.Now.AddDays(1),
                 HttpOnly = true,
                 IsEssential = true
-            };
-            Response.Cookies.Append("SavedTableId", id.ToString(), option);
+            });
 
-            // Chuyển hướng đến trang gọi món
             return RedirectToAction("Index", "Menu");
         }
         public async Task<IActionResult> CurrentTable()
@@ -72,10 +95,46 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            int tableId = int.Parse(tableIdStr);
-            var table = await _context.Tables.FindAsync(tableId);
+            if (int.TryParse(tableIdStr, out int tableId))
+            {
+                var table = await _context.Tables
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.TableId == tableId);
 
-            return View(table);
+                if (table != null) return View(table);
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        /// <summary>
+        /// Giải phóng bàn (Dùng khi khách muốn đổi bàn hoặc nhân viên dọn bàn)
+        /// </summary>
+        public async Task<IActionResult> ReleaseTable(int id)
+        {
+            var table = await _context.Tables.FindAsync(id);
+            if (table != null)
+            {
+                // Kiểm tra xem còn hóa đơn nào chưa thanh toán tại bàn này không trước khi cho giải phóng
+                var hasActiveOrder = await _context.Orders
+                    .AnyAsync(o => o.TableId == id && o.Status != "Completed" && o.Status != "Cancelled");
+
+                if (hasActiveOrder)
+                {
+                    TempData["Error"] = "Không thể giải phóng bàn khi chưa thanh toán hóa đơn!";
+                    return RedirectToAction("Index", "Order");
+                }
+
+                table.Status = "Empty";
+                _context.Update(table);
+                await _context.SaveChangesAsync();
+            }
+
+            // Xóa dấu vết bàn trong trình duyệt khách
+            HttpContext.Session.Remove("TableId");
+            Response.Cookies.Delete("SavedTableId");
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }

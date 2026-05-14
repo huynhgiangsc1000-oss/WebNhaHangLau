@@ -1,0 +1,80 @@
+﻿@model DoAnCoSo.Models.Booking
+
+@{
+    ViewData["Title"] = "Đặt bàn trước";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="card shadow-sm border-0 rounded-lg mx-auto" style="max-width: 800px;">
+        <div class="card-body p-4 p-md-5">
+            <h3 class="text-center text-danger fw-bold mb-4">ĐẶT BÀN TRƯỚC</h3>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <form asp-action="Create" method="post" class="booking-form">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="FullName" class="form-label fw-bold">Họ và Tên</label>
+                        <input asp-for="FullName" class="form-control py-2" placeholder="Nhập tên của bạn" required />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Email" class="form-label fw-bold">Email nhận mã Check-in</label>
+                        <input asp-for="Email" type="email" class="form-control py-2" placeholder="example@gmail.com" required />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="PhoneNumber" class="form-label fw-bold">Số điện thoại</label>
+                    <input asp-for="PhoneNumber" class="form-control py-2" placeholder="Số điện thoại liên lạc" required />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-7 mb-3">
+                        <label class="form-label fw-bold">Ngày & Giờ đến</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-calendar3 text-danger"></i>
+                            </span>
+                            <input type="text" id="bookingDatePicker" name="BookingDate" class="form-control py-2 border-start-0" placeholder="Chọn ngày giờ" required />
+                        </div>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label asp-for="GuestCount" class="form-label fw-bold">Số lượng khách</label>
+                        <input asp-for="GuestCount" type="number" class="form-control py-2" min="1" value="2" required />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Note" class="form-label fw-bold">Ghi chú (Yêu cầu đặc biệt)</label>
+                    <textarea asp-for="Note" class="form-control" rows="3" placeholder="Ví dụ: Bàn gần cửa sổ..."></textarea>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-danger w-100 fw-bold py-3 shadow-sm rounded-3">
+                        GỬI YÊU CẦU & NHẬN MÃ QUA EMAIL
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        flatpickr("#bookingDatePicker", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            minDate: "today",
+            time_24hr: true
+        });
+    </script>
+}

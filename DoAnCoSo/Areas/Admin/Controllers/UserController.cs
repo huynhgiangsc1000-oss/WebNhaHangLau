@@ -71,9 +71,10 @@ namespace DoAnCoSo.Areas.Admin.Controllers
 
             // Lấy lịch sử đơn hàng
             var orders = await _context.Orders
-                .Where(o => o.UserId == id)
-                .OrderByDescending(o => o.OrderDate)
-                .ToListAsync();
+                 .Include(o => o.Promotion) // Thêm để xem khách hay dùng mã nào
+                 .Where(o => o.UserId == id)
+                 .OrderByDescending(o => o.OrderDate)
+                 .ToListAsync();
 
             // Thống kê doanh thu từ khách này (chỉ tính đơn đã thanh toán)
             ViewBag.TotalSpent = orders.Where(o => o.Status == "Paid").Sum(o => o.TotalAmount);

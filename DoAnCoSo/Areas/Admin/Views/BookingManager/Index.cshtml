@@ -1,0 +1,327 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Booking>
+
+@{
+    ViewData["Title"] = "Quản lý đặt bàn";
+}
+
+<div class="container-fluid pt-4 pb-5">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-6">
+            <h3 class="fw-bold text-uppercase text-primary mb-1">
+                <i class="bi bi-calendar2-check me-2"></i>Quản lý đặt bàn trước
+            </h3>
+            <p class="text-muted small mb-0">Theo dõi, duyệt và xác nhận khách đến nhà hàng theo thời gian thực</p>
+        </div>
+        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+            <div class="d-inline-flex gap-2">
+                <a asp-action="CheckIn" class="btn btn-danger shadow-sm px-3 py-2 fw-bold">
+                    <i class="bi bi-qr-code-scan me-2"></i>QUÉT MÃ CHECK-IN
+                </a>
+                <div class="vr mx-2 d-none d-md-block"></div>
+                <div class="btn-group shadow-sm">
+                    <button class="btn btn-white border-secondary position-relative">
+                        <i class="bi bi-bell text-warning"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            @Model.Count(x => x.Status == "Pending")
+                        </span>
+                    </button>
+                    <button class="btn btn-white border-secondary">
+                        <i class="bi bi-people text-info"></i> @Model.Count(x => x.Status == "CheckedIn")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @Html.AntiForgeryToken()
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom-0">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0 fw-bold">Danh sách yêu cầu</h5>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3">Khách hàng</th>
+                            <th class="py-3">Lịch hẹn</th>
+                            <th class="text-center py-3">Số khách</th>
+                            <th class="py-3">Vị trí bàn</th>
+                            <th class="text-center py-3">Trạng thái</th>
+                            <th class="text-end pe-4 py-3">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var rowClass = item.Status switch
+                            {
+                                "Expired" => "opacity-50 table-light",
+                                "CheckedIn" => "table-info-light",
+                                _ => ""
+                            };
+
+                            <tr class="@rowClass transition-all">
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-primary-subtle text-primary rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            <i class="bi bi-person-fill"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@item.FullName</div>
+                                            <small class="text-muted"><i class="bi bi-telephone me-1"></i>@item.PhoneNumber</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-dark fw-medium">@item.BookingDate.ToString("dd/MM/yyyy")</div>
+                                    <span class="badge bg-light text-dark border-0 small">
+                                        <i class="bi bi-clock me-1 text-primary"></i>@item.BookingDate.ToString("HH:mm")
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary-subtle text-secondary px-3">
+                                        @item.GuestCount <i class="bi bi-person-fill ms-1"></i>
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (item.Table != null)
+                                    {
+                                        <span class="text-primary fw-bold">
+                                            <i class="bi bi-geo-alt-fill me-1"></i>@item.Table.TableName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small fst-italic">Chưa gán bàn</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @switch (item.Status)
+                                    {
+                                        case "Pending":
+                                            <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning px-3">Chờ duyệt</span>
+                                            break;
+                                        case "Confirmed":
+                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success px-3">Đã xác nhận</span>
+                                            break;
+                                        case "CheckedIn":
+                                            <span class="badge rounded-pill bg-info-subtle text-info border border-info px-3">Đã đến</span>
+                                            break;
+                                        case "Expired":
+                                            <span class="badge rounded-pill bg-dark-subtle text-muted px-3">Quá hạn</span>
+                                            break;
+                                        default:
+                                            <span class="badge rounded-pill bg-danger-subtle text-danger px-3">Đã hủy</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group btn-group-sm">
+                                        @if (item.Status == "Pending")
+                                        {
+                                            <button class="btn btn-primary" onclick="showAssignModal(@item.BookingId, @item.GuestCount)" title="Duyệt yêu cầu">
+                                                <i class="bi bi-check-lg"></i> Duyệt
+                                            </button>
+                                        }
+
+                                        @if (item.Status == "Confirmed")
+                                        {
+                                            <button class="btn btn-info text-white" onclick="manualCheckIn('@item.CheckInCode')" title="Xác nhận khách đến">
+                                                <i class="bi bi-person-check"></i> Check-in
+                                            </button>
+                                        }
+
+                                        @if (item.Status == "Pending" || item.Status == "Confirmed")
+                                        {
+                                            <button class="btn btn-outline-danger" onclick="ajaxCancel(@item.BookingId)" title="Hủy bỏ">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x display-1 text-light"></i>
+                    <p class="text-muted mt-3">Không có yêu cầu đặt bàn nào trong hệ thống.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAssign" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2"></i>Duyệt & Gán bàn</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="hdnBookingId" />
+                <div class="alert alert-info py-2 small">
+                    <i class="bi bi-info-circle me-2"></i>Khách đặt cho: <strong id="spanGuestCount">0</strong> người.
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-uppercase">Chọn bàn còn trống</label>
+                    <select id="selTable" class="form-select shadow-none">
+                        <option value="">-- Chọn bàn phù hợp --</option>
+                        @if (ViewBag.AvailableTables != null)
+                        {
+                            @foreach (var t in (IEnumerable<DoAnCoSo.Models.Table>)ViewBag.AvailableTables)
+                            {
+                                <option value="@t.TableId">@t.TableName (Sức chứa: @t.Capacity)</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div id="divCapacityWarning" class="alert alert-warning d-none py-2 small">
+                    <i class="bi bi-exclamation-triangle me-2"></i><strong>Cảnh báo:</strong> Sức chứa của bàn nhỏ hơn số khách đặt!
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary px-4" onclick="confirmBooking()">Xác nhận duyệt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .table-info-light {
+            background-color: rgba(13, 202, 240, 0.05);
+        }
+
+        .transition-all {
+            transition: all 0.2s ease;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0,0,0,.02);
+            transform: scale(1.002);
+        }
+    </style>
+
+    <script>
+        // Các hàm JavaScript giữ nguyên logic cũ nhưng bổ sung thông báo mượt hơn bằng SweetAlert2
+        function manualCheckIn(code) {
+            if (!code) {
+                Swal.fire('Lỗi', 'Đơn hàng này không có mã Check-in!', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Xác nhận khách đến?',
+                text: "Xác nhận khách đã có mặt tại nhà hàng và nhận bàn.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0dcaf0',
+                confirmButtonText: 'Xác nhận đến',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) sendCode(code);
+            });
+        }
+
+        function sendCode(code) {
+            $.ajax({
+                url: '@Url.Action("ProcessCheckIn", "BookingManager")',
+                type: 'POST',
+                data: {
+                    qrCode: code,
+                    "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(res) {
+                    if(res.success) {
+                        Swal.fire({ icon: 'success', title: 'Thành công', text: res.message, timer: 1500, showConfirmButton: false })
+                        .then(() => location.reload());
+                    } else {
+                        Swal.fire('Lỗi', res.message, 'error');
+                    }
+                }
+            });
+        }
+
+        var currentGuestCount = 0;
+        function showAssignModal(id, guests) {
+            currentGuestCount = guests;
+            $('#hdnBookingId').val(id);
+            $('#spanGuestCount').text(guests);
+            $('#divCapacityWarning').addClass('d-none');
+            var myModal = new bootstrap.Modal(document.getElementById('modalAssign'));
+            myModal.show();
+        }
+
+        $('#selTable').on('change', function() {
+            const selectedOption = $(this).find('option:selected').text();
+            if (selectedOption.includes("Sức chứa:")) {
+                const capacity = parseInt(selectedOption.match(/\d+/)[0]);
+                if (capacity < currentGuestCount) {
+                    $('#divCapacityWarning').removeClass('d-none');
+                } else {
+                    $('#divCapacityWarning').addClass('d-none');
+                }
+            }
+        });
+
+        function confirmBooking() {
+            const bId = $('#hdnBookingId').val();
+            const tId = $('#selTable').val();
+            if (!tId) {
+                Swal.fire('Lưu ý', 'Vui lòng chọn một bàn để gán!', 'warning');
+                return;
+            }
+
+            $.ajax({
+                url: '/Admin/BookingManager/ConfirmBooking',
+                type: 'POST',
+                data: { bookingId: bId, tableId: tId },
+                headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                success: function(res) {
+                    if (res.success) location.reload();
+                    else Swal.fire('Lỗi', res.message, 'error');
+                }
+            });
+        }
+
+        function ajaxCancel(id) {
+            Swal.fire({
+                title: 'Hủy đặt bàn?',
+                text: "Hành động này không thể hoàn tác!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Đồng ý hủy',
+                cancelButtonText: 'Không'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/Admin/BookingManager/CancelBooking',
+                        type: 'POST',
+                        data: { id: id },
+                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        success: function(res) {
+                            if (res.success) location.reload();
+                            else Swal.fire('Lỗi', 'Không thể hủy đơn.', 'error');
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+}

@@ -9,61 +9,65 @@
 
 @section Styles {
     <style>
-        /* Sidebar layout */
+        body {
+            background-color: #f8f9fa;
+        }
+
+        /* Sidebar - Clean & Minimalist giống ảnh 2 */
         .menu-sidebar {
             position: sticky;
-            top: 20px;
-            height: fit-content;
-            z-index: 100;
-            border-radius: 15px;
-            overflow: hidden;
-            background: #fff;
+            top: 80px;
+            background: transparent;
+            border: none;
+        }
+
+        .category-title-header {
+            color: #f26b21; /* Màu cam Manwah */
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-transform: uppercase;
         }
 
         .category-link {
             display: block;
-            padding: 12px 15px;
-            color: #444;
+            padding: 8px 0;
+            color: #333;
             text-decoration: none !important;
-            border-left: 4px solid transparent;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             font-weight: 500;
-            cursor: pointer;
+            border-bottom: 1px solid transparent;
         }
 
             .category-link:hover, .category-link.active {
-                background: #fff5f5;
-                color: #8b0000 !important;
-                border-left-color: #8b0000;
+                color: #f26b21 !important;
+                border-bottom: 1px solid #f26b21;
+                padding-left: 5px;
             }
 
-            /* Hiệu ứng xoay mũi tên */
-            .category-link i.bi-chevron-down {
-                transition: transform 0.3s;
-            }
+        .sub-category-link {
+            font-size: 0.9rem;
+            padding-left: 15px;
+            color: #666;
+        }
 
-            .category-link[aria-expanded="true"] i.bi-chevron-down {
-                transform: rotate(180deg);
-            }
-
-        /* Card món ăn */
+        /* Card món ăn - Grid layout tối giản */
         .product-card {
             border: none;
-            border-radius: 15px;
-            transition: 0.3s;
-            background: #fff;
-            cursor: pointer; /* Hiệu ứng bàn tay khi di chuột vào card */
+            border-radius: 12px;
+            background: transparent;
+            cursor: pointer;
+            transition: transform 0.3s;
         }
 
             .product-card:hover {
                 transform: translateY(-5px);
-                box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
             }
 
         .product-img-wrapper {
-            height: 180px;
+            aspect-ratio: 1/1; /* Ép ảnh thành hình vuông giống menu thật */
+            border-radius: 12px;
             overflow: hidden;
-            border-radius: 15px 15px 0 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         .product-img {
@@ -77,105 +81,132 @@
             transform: scale(1.1);
         }
 
-        .btn-add-cart {
-            background-color: #8b0000;
-            color: white;
-            border-radius: 20px;
-            border: none;
-            padding: 5px 15px;
+        .product-info {
+            padding-top: 12px;
+            text-align: center;
         }
+
+        .product-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #222;
+            height: 2.6rem;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            margin-bottom: 4px;
+        }
+
+        .product-price {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+
+        /* Nút thêm món đỏ đô */
+        .btn-quick-add {
+            background-color: #a91e24;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 4px 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+            .btn-quick-add:hover {
+                background-color: #8b0000;
+                transform: scale(1.05);
+                color: white;
+            }
     </style>
 }
 
-<div class="container py-5">
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4 small">
+        <ol class="breadcrumb bg-transparent p-0">
+            <li class="breadcrumb-item"><a href="/" class="text-muted text-decoration-none">Trang chủ</a></li>
+            <li class="breadcrumb-item active text-dark fw-bold">Thực đơn</li>
+        </ol>
+    </nav>
+
     <div class="row">
-        <div class="col-lg-3">
-            <div class="menu-sidebar shadow-sm" id="menuAccordion">
-                <div class="p-3 border-bottom">
-                    <h5 class="fw-bold text-danger m-0 text-uppercase">Danh mục</h5>
-                </div>
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="menu-sidebar" id="menuAccordion">
+                <h5 class="category-title-header">Món Lẻ <i class="bi bi-chevron-down small"></i></h5>
 
-                <a asp-action="Index" asp-route-categoryId=""
-                   class="category-link border-bottom @(currentCatId == null ? "active" : "")">
-                    <i class="bi bi-grid-fill me-2"></i> TẤT CẢ MÓN ĂN
-                </a>
+                <div class="ps-1">
+                    <a asp-action="Index" asp-route-categoryId=""
+                       class="category-link @(currentCatId == null ? "active" : "")">Tất cả món</a>
 
-                @if (categories != null)
-                {
-                    @foreach (var cat in categories)
+                    @if (categories != null)
                     {
-                        var hasSub = cat.SubCategories != null && cat.SubCategories.Any();
-                        var isParentActive = currentCatId == cat.CategoryId || (hasSub && cat.SubCategories.Any(s => s.CategoryId == currentCatId));
+                        @foreach (var cat in categories)
+                        {
+                            var hasSub = cat.SubCategories != null && cat.SubCategories.Any();
+                            // Kiểm tra xem danh mục đang chọn có phải là cat này hoặc con của cat này không
+                            var isParentActive = currentCatId == cat.CategoryId || (hasSub && cat.SubCategories.Any(s => s.CategoryId == currentCatId));
 
-                        <div class="category-item">
-                            <div class="d-flex align-items-center border-bottom">
-                                <a asp-action="Index" asp-route-categoryId="@cat.CategoryId"
-                                   class="category-link flex-grow-1 @(currentCatId == cat.CategoryId ? "active" : "")">
-                                    @cat.CategoryName.ToUpper()
-                                </a>
+                            <div class="category-item border-bottom">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <a asp-action="Index" asp-route-categoryId="@cat.CategoryId"
+                                       class="category-link flex-grow-1 @(currentCatId == cat.CategoryId ? "active" : "")">
+                                        @cat.CategoryName.ToUpper()
+                                    </a>
+                                    @if (hasSub)
+                                    {
+                                        <span class="px-3 py-2" data-bs-toggle="collapse" data-bs-target="#collapse-@cat.CategoryId" style="cursor:pointer">
+                                            <i class="bi @(isParentActive ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                                        </span>
+                                    }
+                                </div>
+
                                 @if (hasSub)
                                 {
-                                    <span class="px-3" data-bs-toggle="collapse" data-bs-target="#collapse-@cat.CategoryId" style="cursor:pointer">
-                                        <i class="bi bi-chevron-down"></i>
-                                    </span>
+                                    <div id="collapse-@cat.CategoryId"
+                                         class="collapse @(isParentActive ? "show" : "")"
+                                         data-bs-parent="#menuAccordion">
+                                        <div class="bg-light pb-2">
+                                            @foreach (var sub in cat.SubCategories)
+                                            {
+                                                <a asp-action="Index" asp-route-categoryId="@sub.CategoryId"
+                                                   class="category-link ps-4 small @(currentCatId == sub.CategoryId ? "active" : "")"
+                                                   style="font-size: 0.9rem; border: none;">
+                                                    <i class="bi bi-arrow-return-right me-2 text-muted"></i>@sub.CategoryName
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
                                 }
                             </div>
-
-                            @if (hasSub)
-                            {
-                                <div id="collapse-@cat.CategoryId"
-                                     class="collapse @(isParentActive ? "show" : "")"
-                                     data-bs-parent="#menuAccordion">
-                                    <div class="bg-light">
-                                        @foreach (var sub in cat.SubCategories)
-                                        {
-                                            <a asp-action="Index" asp-route-categoryId="@sub.CategoryId"
-                                               class="category-link ps-4 small @(currentCatId == sub.CategoryId ? "active" : "")">
-                                                <i class="bi bi-arrow-return-right me-2 text-muted"></i>@sub.CategoryName
-                                            </a>
-                                        }
-                                    </div>
-                                </div>
-                            }
-                        </div>
+                        }
                     }
-                }
+                </div>
             </div>
         </div>
 
-        <div class="col-lg-9">
-            <div class="d-flex justify-content-between align-items-end mb-3">
-                <h2 class="fw-bold m-0">THỰC ĐƠN TRỨ DANH</h2>
-            </div>
-
+        <div class="col-lg-9 col-md-8">
             <div class="row g-4">
                 @foreach (var item in Model)
                 {
-                    <div class="col-md-4 col-sm-6">
-                        <div class="card h-100 product-card shadow-sm" onclick="showProductDetail(@item.ProductId)">
+                    <div class="col-xl-4 col-lg-6 col-md-6 col-6">
+                        <div class="product-card" onclick="showProductDetail(@item.ProductId)">
                             <div class="product-img-wrapper">
-                                <img src="~/images/@item.ImagePath"
-                                     class="product-img"
-                                     alt="@item.ProductName"
+                                <img src="~/images/@item.ImagePath" class="product-img" alt="@item.ProductName"
                                      onerror="this.src='/images/no-image.png'">
                             </div>
-                            <div class="card-body p-3 d-flex flex-column">
-                                <small class="text-danger fw-bold">@(item.Category?.CategoryName)</small>
-                                <h6 class="fw-bold text-dark mt-1">@item.ProductName</h6>
-                                <p class="text-muted small flex-grow-1">@item.Description</p>
+                            <div class="product-info">
+                                <div class="product-title">@item.ProductName</div>
+                                <div class="product-price">@item.Price.ToString("N0") đ</div>
 
-                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <span class="text-danger fw-bold fs-5">@item.Price.ToString("N0")đ</span>
-
-                                    @if (hasTable)
-                                    {
-                                        <button class="btn btn-add-cart btn-add-to-cart"
-                                                data-product-id="@item.ProductId"
-                                                onclick="event.stopPropagation(); addToCart(@item.ProductId, 1)">
-                                            <i class="bi bi-plus-lg"></i> Thêm
-                                        </button>
-                                    }
-                                </div>
+                                @if (hasTable)
+                                {
+                                    <button class="btn btn-quick-add" onclick="event.stopPropagation(); addToCart(@item.ProductId, 1)">
+                                        + Thêm
+                                    </button>
+                                }
                             </div>
                         </div>
                     </div>
@@ -188,15 +219,30 @@
 <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
-            <div id="productModalContent">
-            </div>
+            <div id="productModalContent"></div>
         </div>
     </div>
 </div>
 
+@Html.AntiForgeryToken()
+
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Hàm hiển thị Modal chi tiết
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+        });
+
+        function updateCartBadge() {
+            $.get('/Customer/Cart/GetCartCount', function (count) {
+                $('.cart-badge').text(count);
+            });
+        }
+
         function showProductDetail(productId) {
             $.get('/Customer/Menu/GetProductDetail/' + productId, function (data) {
                 $('#productModalContent').html(data);
@@ -204,19 +250,40 @@
             });
         }
 
-        // Hàm thêm vào giỏ hàng
         function addToCart(productId, quantity) {
-            // Nếu gọi từ Modal, quantity sẽ được lấy từ input id="quantity"
-            var qty = quantity || $('#quantity').val() || 1;
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            var qty = $('#quantity').val() || quantity || 1;
 
-            $.post('/Customer/Cart/AddToCart', { productId: productId, quantity: qty }, function (response) {
-                if (response.success) {
-                    alert("Đã thêm món vào giỏ!");
-                    $('#productModal').modal('hide');
-                } else {
-                    alert(response.message);
+            $.ajax({
+                url: '/Customer/Cart/AddToCart',
+                type: 'POST',
+                data: {
+                    __RequestVerificationToken: token,
+                    productId: productId,
+                    quantity: qty
+                },
+                success: function (response) {
+                    if (response.success) {
+                        Toast.fire({ icon: 'success', title: response.message });
+                        $('#productModal').modal('hide');
+                        updateCartBadge();
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Thông báo',
+                            text: response.message,
+                            confirmButtonText: 'Quét mã bàn',
+                            confirmButtonColor: '#a91e24'
+                        }).then((result) => {
+                            if (result.isConfirmed) window.location.href = '/';
+                        });
+                    }
                 }
             });
         }
+
+        $(document).ready(function() {
+            updateCartBadge();
+        });
     </script>
 }

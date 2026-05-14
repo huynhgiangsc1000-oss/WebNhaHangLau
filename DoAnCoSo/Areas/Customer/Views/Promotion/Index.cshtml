@@ -1,0 +1,94 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Promotion>
+
+@{
+    ViewData["Title"] = "Ưu đãi đặc biệt";
+}
+
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h2 class="text-danger fw-bold text-uppercase">🎁 Chương trình ưu đãi Manwah 🎁</h2>
+        <p class="text-muted">Khám phá các mã giảm giá và voucher hấp dẫn dành riêng cho bạn</p>
+    </div>
+
+    <div class="row">
+        @foreach (var item in Model)
+        {
+            // Kiểm tra trạng thái chiến dịch
+            var isExpired = item.EndDate < DateTime.Now;
+            var isUpcoming = item.StartDate > DateTime.Now;
+
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm border-0 position-relative">
+                    <!-- Badge Giảm giá -->
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <span class="badge bg-danger p-2 fs-6 shadow-sm">
+                            -@item.DiscountValue%
+                        </span>
+                    </div>
+
+                    <!-- Hình ảnh ưu đãi -->
+                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/images/no-promo.png" : item.ImageUrl)"
+                         class="card-img-top rounded-top"
+                         alt="@item.Title"
+                         style="height: 220px; object-fit: cover;">
+
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-dark mb-2">@item.Title</h5>
+
+                        <p class="card-text text-muted small mb-3">
+                            @(item.Description?.Length > 100 ? item.Description.Substring(0, 100) + "..." : item.Description)
+                        </p>
+
+                        <div class="bg-light p-2 rounded mb-3 border-start border-danger border-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small text-muted">Mã: <strong class="text-dark">@item.CouponCode</strong></span>
+                                <button class="btn btn-sm btn-outline-danger" onclick="copyToClipboard('@item.CouponCode')">
+                                    <i class="bi bi-clipboard"></i> Sao chép
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="small">
+                                <i class="bi bi-calendar-event me-1"></i>
+                                Hạn: @item.EndDate.ToString("dd/MM/yyyy")
+                            </div>
+
+                            @if (isExpired)
+                            {
+                                <span class="badge bg-secondary">Hết hạn</span>
+                            }
+                            else if (isUpcoming)
+                            {
+                                <span class="badge bg-warning text-dark">Sắp diễn ra</span>
+                            }
+                            else
+                            {
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-danger btn-sm px-3 shadow-sm">
+                                    Chi tiết
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-ticket-perforated fs-1 text-muted"></i>
+                <p class="text-muted mt-2">Hiện tại chưa có chương trình ưu đãi nào.</p>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            alert("Đã sao chép mã voucher: " + text);
+        }
+    </script>
+}

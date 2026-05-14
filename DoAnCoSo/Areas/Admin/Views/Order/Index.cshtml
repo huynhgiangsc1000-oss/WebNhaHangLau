@@ -5,6 +5,32 @@
     ViewData["Title"] = "Quản lý đơn hàng";
 }
 
+<style>
+    /* Hiệu ứng nhấp nháy màu xanh cho đơn chờ thanh toán */
+    .blink-awaiting {
+        animation: blink-blue 1.5s infinite;
+        background-color: #e7f3ff !important;
+        font-weight: bold;
+    }
+
+    @@keyframes blink-blue {
+        0%
+
+    {
+        background-color: #e7f3ff;
+    }
+
+    50% {
+        background-color: #b3d7ff;
+    }
+
+    100% {
+        background-color: #e7f3ff;
+    }
+
+    }
+</style>
+
 <div class="container-fluid py-4">
     <div class="card shadow border-0">
         <div class="card-header bg-white py-3">
@@ -15,9 +41,9 @@
                     </h5>
                 </div>
                 <div class="col-md-6">
-                    <form class="d-flex justify-content-end align-items-center">
-                        <input type="text" class="form-control form-control-sm me-2 w-50" placeholder="Mã đơn, bàn...">
-                        <input type="date" class="form-control form-control-sm me-2">
+                    <form asp-action="Index" method="get" class="d-flex justify-content-end align-items-center">
+                        <input type="text" name="searchQuery" value="@ViewBag.CurrentSearch"
+                               class="form-control form-control-sm me-2 w-50" placeholder="Mã đơn, bàn...">
                         <button type="submit" class="btn btn-danger btn-sm px-3">Lọc</button>
                     </form>
                 </div>
@@ -43,14 +69,24 @@
                         }
                         @foreach (var item in Model)
                         {
-                            <tr>
+                            decimal rankPct = item.User?.Rank?.DiscountPercent ?? 0;
+                            decimal promoPct = item.Promotion?.DiscountValue ?? 0;
+                            decimal finalPct = Math.Max(rankPct, promoPct);
+                            decimal finalAmount = item.TotalAmount * (1 - (finalPct / 100m));
+
+                            // Kiểm tra trạng thái AwaitingPayment để nhấp nháy
+                            string rowClass = item.Status == "AwaitingPayment" ? "blink-awaiting" : "";
+
+                            <tr class="@rowClass">
                                 <td>@(i++)</td>
                                 <td class="fw-bold text-primary">#@item.OrderId</td>
                                 <td>@item.OrderDate.ToString("HH:mm dd/MM")</td>
                                 <td>
                                     <span class="badge bg-dark">@item.Table?.TableName</span>
                                 </td>
-                                <td class="text-danger fw-bold">@item.TotalAmount.ToString("N0")đ</td>
+                                <td class="text-danger fw-bold">
+                                    @finalAmount.ToString("N0")đ
+                                </td>
                                 <td>
                                     @switch (item.Status)
                                     {
@@ -58,24 +94,37 @@
                                             <span class="badge rounded-pill bg-warning text-dark">Chờ xác nhận</span>
                                             break;
                                         case "Processing":
-                                            <span class="badge rounded-pill bg-info">Đang chế biến</span>
+                                            <span class="badge rounded-pill bg-info text-white">Đang phục vụ</span>
+                                            break;
+                                        case "AwaitingPayment":
+                                            <span class="badge rounded-pill bg-primary text-white">Chờ thu tiền</span>
                                             break;
                                         case "Completed":
-                                            <span class="badge rounded-pill bg-success">Đã phục vụ</span>
+                                            <span class="badge rounded-pill bg-success text-white">Đã hoàn tất</span>
                                             break;
                                         case "Cancelled":
-                                            <span class="badge rounded-pill bg-danger">Đã hủy</span>
+                                            <span class="badge rounded-pill bg-danger text-white">Đã hủy</span>
                                             break;
                                         default:
-                                            <span class="badge rounded-pill bg-secondary">@item.Status</span>
+                                            <span class="badge rounded-pill bg-secondary text-white">@item.Status</span>
                                             break;
                                     }
                                 </td>
                                 <td>
-                                    <button class="btn btn-outline-dark btn-sm rounded-pill px-3"
-                                            onclick="showOrderDetail(@item.OrderId)">
-                                        <i class="fas fa-eye me-1"></i> Chi tiết
-                                    </button>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-dark btn-sm rounded-pill px-3 me-2"
+                                                onclick="showOrderDetail(@item.OrderId)">
+                                            <i class="fas fa-eye me-1"></i> Chi tiết
+                                        </button>
+
+                                        @if (item.Status == "AwaitingPayment")
+                                        {
+                                            <button class="btn btn-outline-primary btn-sm rounded-pill px-3"
+                                                    onclick="printInvoice(@item.OrderId)">
+                                                <i class="fas fa-print me-1"></i> In Bill
+                                            </button>
+                                        }
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -87,13 +136,11 @@
 </div>
 
 <div id="orderDetailContainer"></div>
-
+@Html.AntiForgeryToken()
 @section Scripts {
     <script>
         function showOrderDetail(orderId) {
-            // Hiệu ứng loading nhẹ
             $('#orderDetailContainer').html('<div class="text-center p-5"><div class="spinner-border text-danger"></div></div>');
-
             $.get('/Admin/Order/GetDetails/' + orderId, function (data) {
                 $('#orderDetailContainer').html(data);
                 $('#orderDetailModal').modal('show');
@@ -102,10 +149,17 @@
             });
         }
 
+        function printInvoice(orderId) {
+            var width = 800;
+            var height = 900;
+            var left = (screen.width - width) / 2;
+            var top = (screen.height - height) / 2;
+            window.open('/Admin/Order/PrintInvoice/' + orderId, '_blank',
+                        'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes');
+        }
+
         function updateStatus(id) {
             var status = $('#statusSelect').val();
-
-            // Lấy token từ input ẩn mà ASP.NET tự sinh ra trong form
             var token = $('input[name="__RequestVerificationToken"]').val();
 
             $('.btn-update-status').prop('disabled', true);
@@ -114,7 +168,7 @@
                 url: '/Admin/Order/UpdateStatus',
                 type: 'POST',
                 data: {
-                    __RequestVerificationToken: token, // Gửi kèm token ở đây
+                    __RequestVerificationToken: token,
                     id: id,
                     status: status
                 },
@@ -126,14 +180,58 @@
                         alert("Lỗi: " + response.message);
                         $('.btn-update-status').prop('disabled', false);
                     }
-                },
-                error: function (xhr) {
-                    // Log lỗi chi tiết ra console để kiểm tra
-                    console.error(xhr.responseText);
-                    alert("Không thể kết nối đến server. Vui lòng kiểm tra console (F12).");
-                    $('.btn-update-status').prop('disabled', false);
                 }
             });
+        }
+        function confirmPayment(orderId) {
+            if (confirm("Xác nhận đã thu tiền và dọn bàn cho đơn hàng #" + orderId + "?")) {
+                // Gọi AJAX đến Action UpdateStatus trong OrderController (Admin)
+                $.ajax({
+                    url: '/Admin/Order/UpdateStatus',
+                    type: 'POST',
+                    data: {
+                        id: orderId,
+                        status: 'Completed'
+                    },
+                    success: function (res) {
+                        if (res.success) {
+                            alert("Thanh toán thành công! Bàn đã được giải phóng.");
+                            location.reload(); // Load lại trang để thấy bàn trống
+                        } else {
+                            alert("Lỗi: " + res.message);
+                        }
+                    },
+                    error: function () {
+                        alert("Không thể kết nối đến hệ thống. Vui lòng kiểm tra lại Controller!");
+                    }
+                });
+            }
+        }
+        function executeStatusUpdate(orderId, status) {
+            if (confirm("Xác nhận cập nhật trạng thái đơn hàng?")) {
+                // Lấy token từ input ẩn mà ASP.NET tự sinh ra
+                var token = $('input[name="__RequestVerificationToken"]').val();
+
+                $.ajax({
+                    url: '/Admin/Order/UpdateStatus',
+                    type: 'POST',
+                    data: {
+                        id: orderId,
+                        status: status,
+                        __RequestVerificationToken: token // Bắt buộc phải có dòng này
+                    },
+                    success: function (res) {
+                        if (res.success) {
+                            location.reload();
+                        } else {
+                            alert("Lỗi: " + res.message);
+                        }
+                    },
+                    error: function () {
+                        alert("Lỗi kết nối hệ thống!");
+                    }
+                });
+            }
         }
     </script>
 }

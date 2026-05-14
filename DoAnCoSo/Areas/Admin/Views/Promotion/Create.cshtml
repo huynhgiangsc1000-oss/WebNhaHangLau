@@ -1,0 +1,112 @@
+﻿@model DoAnCoSo.Models.Promotion
+
+@{
+    ViewData["Title"] = "Tạo Khuyến Mãi Mới";
+}
+
+<div class="container-fluid p-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center mb-4">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <h2 class="text-primary fw-bold mb-0">TẠO CHIẾN DỊCH KHUYẾN MÃI</h2>
+            </div>
+
+            <div class="card shadow border-0">
+                <div class="card-body p-4">
+                    <form asp-action="Create" method="post" enctype="multipart/form-data">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="row">
+                            <!-- Phần tiêu đề và mô tả -->
+                            <div class="col-md-12 mb-3">
+                                <label asp-for="Title" class="form-label fw-bold">Tiêu đề chương trình</label>
+                                <input asp-for="Title" class="form-control" placeholder="Ví dụ: Đại tiệc lẩu Manwah - Giảm 20%" />
+                                <span asp-validation-for="Title" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-12 mb-3">
+                                <label asp-for="Description" class="form-label fw-bold">Mô tả chi tiết</label>
+                                <textarea asp-for="Description" class="form-control" rows="3" placeholder="Nhập nội dung ưu đãi..."></textarea>
+                                <span asp-validation-for="Description" class="text-danger small"></span>
+                            </div>
+
+                            <!-- Mã Code và Giá trị giảm -->
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="CouponCode" class="form-label fw-bold">Mã Voucher</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-ticket-perforated"></i></span>
+                                    <input asp-for="CouponCode" class="form-control text-uppercase" placeholder="MANWAH20" />
+                                </div>
+                                <span asp-validation-for="CouponCode" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="DiscountValue" class="form-label fw-bold">Phần trăm giảm (%)</label>
+                                <div class="input-group">
+                                    <input asp-for="DiscountValue" type="number" class="form-control" min="1" max="100" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <span asp-validation-for="DiscountValue" class="text-danger small"></span>
+                            </div>
+
+                            <!-- Thời hạn chương trình -->
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="StartDate" class="form-label fw-bold">Ngày bắt đầu</label>
+                                <input asp-for="StartDate" type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                <span asp-validation-for="StartDate" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="EndDate" class="form-label fw-bold">Ngày kết thúc</label>
+                                <input asp-for="EndDate" type="date" class="form-control" value="@DateTime.Now.AddDays(7).ToString("yyyy-MM-dd")" />
+                                <span asp-validation-for="EndDate" class="text-danger small"></span>
+                            </div>
+
+                            <!-- Hình ảnh đại diện -->
+                            <div class="col-md-12 mb-4">
+                                <label class="form-label fw-bold">Hình ảnh chiến dịch</label>
+                                <input type="file" name="ImageFile" class="form-control" accept="image/*" onchange="previewImage(this)" />
+                                <div class="mt-2 text-center">
+                                    <img id="imagePreview" src="/images/no-promo.png" class="img-thumbnail" style="max-height: 200px; display: none;" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="reset" class="btn btn-light px-4">Hủy nhập</button>
+                            <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                                <i class="bi bi-cloud-arrow-up me-1"></i> Lưu và Đăng bài
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Hàm xem trước hình ảnh trước khi upload
+        function previewImage(input) {
+            var preview = document.getElementById('imagePreview');
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'inline-block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+}

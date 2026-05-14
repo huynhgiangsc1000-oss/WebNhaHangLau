@@ -1,43 +1,55 @@
 ﻿@model DoAnCoSo.Models.Order
 
+@{
+    decimal rankPercent = Model.User?.Rank?.DiscountPercent ?? 0;
+    decimal promoPercent = Model.Promotion?.DiscountValue ?? 0;
+    decimal appliedPercent = Math.Max(rankPercent, promoPercent);
+
+    decimal discountAmount = Model.TotalAmount * (appliedPercent / 100m);
+    decimal finalPrice = Model.TotalAmount - discountAmount;
+    bool isAwaiting = Model.Status == "AwaitingPayment";
+}
+
 <div class="modal fade" id="orderDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Chi tiết đơn hàng #@Model.OrderId</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header @(isAwaiting ? "bg-primary" : "bg-danger") text-white">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>CHI TIẾT ĐƠN HÀNG #@Model.OrderId</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
-                <div class="row mb-4">
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <h6 class="text-muted text-uppercase small fw-bold">Thông tin bàn & Thời gian</h6>
                         <p class="mb-1"><strong>Bàn:</strong> <span class="badge bg-dark">@Model.Table?.TableName</span></p>
                         <p class="mb-1"><strong>Giờ đặt:</strong> @Model.OrderDate.ToString("HH:mm - dd/MM/yyyy")</p>
                         <p class="mb-1">
-                            <strong>Trạng thái hiện tại:</strong>
-                            <span class="fw-bold text-primary">@Model.Status</span>
+                            <strong>Trạng thái:</strong>
+                            <span class="fw-bold @(isAwaiting ? "text-primary" : "text-danger")">@Model.Status</span>
                         </p>
                     </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted text-uppercase small fw-bold">Thông tin khách hàng</h6>
+
+                    <div class="col-md-6 border-start">
+                        <h6 class="text-muted text-uppercase small fw-bold">Khách hàng & Ưu đãi</h6>
                         @if (Model.User != null)
                         {
                             <p class="mb-1"><strong>Họ tên:</strong> @Model.User.FullName</p>
-                            <p class="mb-1"><strong>SĐT:</strong> @Model.User.PhoneNumber</p>
-                            <p class="mb-1"><strong>Hạng:</strong> <span class="text-danger fw-bold">@Model.User.Rank?.RankName</span></p>
+                            <p class="mb-1"><strong>SĐT:</strong> <span class="text-primary">@Model.User.PhoneNumber</span></p>
+                            <p class="mb-1"><strong>Hạng:</strong> <span class="text-danger fw-bold">@Model.User.Rank?.RankName (@rankPercent%)</span></p>
                         }
                         else
                         {
-                            <p class="text-muted italic">Khách vãng lai (không đăng nhập)</p>
+                            <p class="text-muted italic">Khách vãng lai</p>
                         }
                     </div>
                 </div>
 
                 <div class="table-responsive">
                     <table class="table table-bordered align-middle">
-                        <thead class="bg-light">
-                            <tr class="text-center">
-                                <th>Món ăn</th>
+                        <thead class="bg-light text-center small">
+                            <tr>
+                                <th style="width: 40%">Món ăn</th>
                                 <th>Đơn giá</th>
                                 <th>SL</th>
                                 <th>Thành tiền</th>
@@ -50,49 +62,64 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <img src="~/images/@(detail.Product?.ImagePath ?? "no-image.png")"
-                                                 style="width: 40px; height: 40px; object-fit: cover;" class="rounded me-2">
+                                                 class="rounded me-3 shadow-sm"
+                                                 style="width: 50px; height: 50px; object-fit: cover;"
+                                                 onerror="this.src='/images/no-image.png'">
                                             <span class="fw-bold">@detail.Product?.ProductName</span>
                                         </div>
                                     </td>
-                                    <td class="text-center">@detail.UnitPrice.ToString("N0")đ</td>
+                                    <td class="text-center">@detail.UnitPrice.ToString("N0")</td>
                                     <td class="text-center">@detail.Quantity</td>
                                     <td class="text-end fw-bold">@((detail.UnitPrice * detail.Quantity).ToString("N0"))đ</td>
                                 </tr>
                             }
                         </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="3" class="text-end fw-bold">Tổng cộng:</td>
-                                <td class="text-end fw-bold text-danger fs-5">@Model.TotalAmount.ToString("N0")đ</td>
+                        <tfoot class="bg-light">
+                            <tr class="text-end">
+                                <td colspan="3" class="text-muted">Tạm tính:</td>
+                                <td class="fw-bold">@Model.TotalAmount.ToString("N0")đ</td>
+                            </tr>
+                            @if (appliedPercent > 0)
+                            {
+                                <tr class="text-end text-success">
+                                    <td colspan="3">Giảm giá (@appliedPercent%):</td>
+                                    <td class="fw-bold">-@discountAmount.ToString("N0")đ</td>
+                                </tr>
+                            }
+                            <tr class="text-end">
+                                <td colspan="3" class="fw-bold fs-5">TỔNG THU:</td>
+                                <td class="fw-bold text-danger fs-5">@finalPrice.ToString("N0")đ</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
 
-                @if (Model.Status != "Paid" && Model.Status != "Cancelled")
-                {
-                    <div class="mt-4 p-3 bg-light rounded shadow-sm">
-                        <label class="form-label fw-bold text-dark"><i class="fas fa-edit me-1"></i>Cập nhật trạng thái mới:</label>
+                <div class="mt-4">
+                    @if (isAwaiting)
+                    {
+                        <button class="btn btn-success btn-lg w-100 fw-bold py-3 shadow"
+                                onclick="executeStatusUpdate(@Model.OrderId, 'Completed')">
+                            <i class="fas fa-check-double me-2"></i> ĐÃ THU TIỀN & TRẢ BÀN TRỐNG
+                        </button>
+                    }
+                    else if (Model.Status != "Completed" && Model.Status != "Cancelled")
+                    {
                         <div class="input-group">
                             <select id="statusSelect" class="form-select border-danger">
                                 <option value="Pending" selected="@(Model.Status == "Pending")">Chờ xác nhận</option>
-                                <option value="Processing" selected="@(Model.Status == "Processing")">Đang chế biến</option>
-                                <option value="Completed" selected="@(Model.Status == "Completed")">Đã phục vụ</option>
-                                <option value="Paid">Thanh toán & Giải phóng bàn</option>
-                                <option value="Cancelled">Hủy đơn hàng</option>
+                                <option value="Processing" selected="@(Model.Status == "Processing")">Đang phục vụ</option>
+                                <option value="Cancelled">Hủy đơn</option>
                             </select>
-                            <button class="btn btn-danger px-4 btn-update-status" type="button" onclick="updateStatus(@Model.OrderId)">
-                                Xác nhận
-                            </button>
+                            <button class="btn btn-danger px-4" onclick="updateStatus(@Model.OrderId)">Cập nhật</button>
                         </div>
-                        <small class="text-muted mt-2 d-block">
-                            * Lưu ý: Khi chuyển sang <strong>Paid</strong>, hệ thống sẽ tự động cộng điểm cho khách và đặt trạng thái bàn về <strong>Trống</strong>.
-                        </small>
-                    </div>
-                }
+                    }
+                </div>
             </div>
             <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="printInvoice(@Model.OrderId)">
+                    <i class="fas fa-print me-1"></i> In hóa đơn
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>

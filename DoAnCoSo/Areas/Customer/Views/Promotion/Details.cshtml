@@ -1,0 +1,98 @@
+﻿@model DoAnCoSo.Models.Promotion
+
+@{
+    ViewData["Title"] = "Chi tiết ưu đãi - " + Model.Title;
+    var isExpired = Model.EndDate < DateTime.Now;
+}
+
+<div class="container mt-5 mb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Ưu đãi</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Cột trái: Hình ảnh banner -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm overflow-hidden rounded-4">
+                <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/no-promo.png" : Model.ImageUrl)"
+                     class="img-fluid w-100"
+                     alt="@Model.Title"
+                     style="min-height: 400px; object-fit: cover;">
+            </div>
+        </div>
+
+        <!-- Cột phải: Thông tin chi tiết -->
+        <div class="col-lg-5">
+            <div class="p-4 bg-white rounded-4 shadow-sm h-100 border">
+                <h1 class="fw-bold text-dark mb-3">@Model.Title</h1>
+
+                <div class="d-flex align-items-center mb-4">
+                    <span class="badge bg-danger fs-5 px-3 py-2">
+                        Giảm @Model.DiscountValue%
+                    </span>
+                    <span class="ms-3 text-muted">
+                        <i class="bi bi-clock-history"></i>
+                        Hạn dùng: @Model.EndDate.ToString("dd/MM/yyyy")
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="fw-bold"><i class="bi bi-info-circle me-2 text-danger"></i>Mô tả chương trình</h5>
+                    <p class="text-secondary lh-lg">
+                        @Model.Description
+                    </p>
+                </div>
+
+                <div class="card bg-light border-dashed p-4 mb-4 text-center">
+                    <p class="small text-muted text-uppercase mb-2 fw-bold">Mã giảm giá của bạn</p>
+                    <h2 class="text-danger fw-bold mb-3" id="couponCode">@Model.CouponCode</h2>
+
+                    @if (isExpired)
+                    {
+                        <button class="btn btn-secondary w-100 py-2 disabled">Ưu đãi đã hết hạn</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-danger w-100 py-2 fw-bold shadow-sm" onclick="copyCode('@Model.CouponCode')">
+                            <i class="bi bi-files me-2"></i>SAO CHÉP MÃ
+                        </button>
+                    }
+                </div>
+
+                <div class="alert alert-warning border-0 small">
+                    <strong>Lưu ý:</strong>
+                    <ul class="mb-0 mt-1">
+                        <li>Áp dụng từ: @Model.StartDate.ToString("dd/MM/yyyy")</li>
+                        <li>Chỉ áp dụng cho các đơn hàng đặt tại bàn.</li>
+                        <li>Vui lòng đưa mã cho nhân viên hoặc nhập khi thanh toán trực tuyến.</li>
+                    </ul>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <a asp-controller="Menu" asp-action="Index" class="btn btn-link text-decoration-none text-dark fw-bold">
+                        <i class="bi bi-arrow-left me-2"></i> Quay lại thực đơn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-dashed {
+        border: 2px dashed #dc3545 !important;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        function copyCode(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert("Đã sao chép mã: " + text + ". Hãy sử dụng khi thanh toán!");
+            });
+        }
+    </script>
+}

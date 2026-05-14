@@ -22,6 +22,59 @@ namespace DoAnCoSo.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("DoAnCoSo.Models.Booking", b =>
+                {
+                    b.Property<int>("BookingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BookingId"));
+
+                    b.Property<DateTime>("BookingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CheckInCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("GuestCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("TableId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("BookingId");
+
+                    b.HasIndex("TableId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Bookings");
+                });
+
             modelBuilder.Entity("DoAnCoSo.Models.CartItem", b =>
                 {
                     b.Property<int>("Id")
@@ -84,8 +137,23 @@ namespace DoAnCoSo.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderId"));
 
+                    b.Property<decimal>("AppliedDiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PromotionId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -101,6 +169,10 @@ namespace DoAnCoSo.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("OrderId");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("PromotionId");
 
                     b.HasIndex("TableId");
 
@@ -172,6 +244,45 @@ namespace DoAnCoSo.Data.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("DoAnCoSo.Models.Promotion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CouponCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Promotions");
+                });
+
             modelBuilder.Entity("DoAnCoSo.Models.Rank", b =>
                 {
                     b.Property<int>("RankId")
@@ -202,6 +313,9 @@ namespace DoAnCoSo.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TableId"));
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
 
                     b.Property<string>("QrCode")
                         .HasColumnType("nvarchar(max)");
@@ -435,6 +549,21 @@ namespace DoAnCoSo.Data.Migrations
                     b.ToTable("UserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("DoAnCoSo.Models.Booking", b =>
+                {
+                    b.HasOne("DoAnCoSo.Models.Table", "Table")
+                        .WithMany("Bookings")
+                        .HasForeignKey("TableId");
+
+                    b.HasOne("DoAnCoSo.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Table");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DoAnCoSo.Models.CartItem", b =>
                 {
                     b.HasOne("DoAnCoSo.Models.Product", "Product")
@@ -465,8 +594,16 @@ namespace DoAnCoSo.Data.Migrations
 
             modelBuilder.Entity("DoAnCoSo.Models.Order", b =>
                 {
-                    b.HasOne("DoAnCoSo.Models.Table", "Table")
+                    b.HasOne("DoAnCoSo.Models.Booking", "Booking")
                         .WithMany()
+                        .HasForeignKey("BookingId");
+
+                    b.HasOne("DoAnCoSo.Models.Promotion", "Promotion")
+                        .WithMany("Orders")
+                        .HasForeignKey("PromotionId");
+
+                    b.HasOne("DoAnCoSo.Models.Table", "Table")
+                        .WithMany("Orders")
                         .HasForeignKey("TableId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -474,6 +611,10 @@ namespace DoAnCoSo.Data.Migrations
                     b.HasOne("DoAnCoSo.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Promotion");
 
                     b.Navigation("Table");
 
@@ -585,6 +726,18 @@ namespace DoAnCoSo.Data.Migrations
             modelBuilder.Entity("DoAnCoSo.Models.Product", b =>
                 {
                     b.Navigation("OrderDetails");
+                });
+
+            modelBuilder.Entity("DoAnCoSo.Models.Promotion", b =>
+                {
+                    b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("DoAnCoSo.Models.Table", b =>
+                {
+                    b.Navigation("Bookings");
+
+                    b.Navigation("Orders");
                 });
 #pragma warning restore 612, 618
         }

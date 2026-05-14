@@ -1,0 +1,117 @@
+﻿@{
+    ViewData["Title"] = "Quét mã Check-in";
+}
+
+@Html.AntiForgeryToken()
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5 text-center">
+            <div class="mb-4">
+                <a asp-action="Index" class="text-decoration-none text-muted small">
+                    <i class="bi bi-arrow-left"></i> Quay lại danh sách
+                </a>
+                <h2 class="fw-bold text-danger mt-2"><i class="bi bi-qr-code-scan"></i> QUÉT MÃ KHÁCH ĐẾN</h2>
+                <p class="text-muted">Đưa mã QR trong mail của khách trước Camera</p>
+            </div>
+
+            <div class="position-relative">
+                <div id="reader" class="shadow-lg" style="width: 100%; border-radius: 20px; overflow: hidden; border: 4px solid #dc3545; background: #000;"></div>
+                <div class="scanner-line"></div>
+            </div>
+
+            <div class="card mt-4 shadow-sm border-0 bg-white">
+                <div class="card-body p-4">
+                    <label class="form-label fw-bold text-dark mb-3">Không quét được? Nhập mã tại đây:</label>
+                    <div class="input-group">
+                        <input type="text" id="manualCode" class="form-control border-danger p-2" placeholder="Ví dụ: MNW-123456" style="text-transform: uppercase;">
+                        <button type="button" id="btnManualConfirm" class="btn btn-danger px-4">XÁC NHẬN</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        let html5QrCode;
+        const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+
+        // Hàm khởi động Camera
+        function startCamera() {
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                html5QrCode.stop().then(() => {
+                    sendCode(decodedText);
+                });
+            }).catch(err => {
+                console.error("Camera Error:", err);
+                // Thông báo lỗi chi tiết để bạn biết nguyên nhân
+                let msg = "Không thể mở camera. ";
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    msg += "Trình duyệt yêu cầu HTTPS để sử dụng camera.";
+                } else {
+                    msg += "Vui lòng cấp quyền truy cập camera trong cài đặt trình duyệt.";
+                }
+                Swal.fire('Lỗi Camera', msg, 'warning');
+            });
+        }
+
+        $(document).ready(function() {
+            // Khởi động camera khi trang sẵn sàng
+            startCamera();
+
+            // Xử lý nút nhập mã tay
+            $('#btnManualConfirm').on('click', function() {
+                const code = $('#manualCode').val().trim().toUpperCase();
+                if (!code) {
+                    Swal.fire('Thông báo', 'Vui lòng nhập mã để xác nhận!', 'warning');
+                    return;
+                }
+                sendCode(code);
+            });
+
+            // Nhấn Enter cũng gửi được mã
+            $('#manualCode').on('keypress', function(e) {
+                if (e.which == 13) $('#btnManualConfirm').click();
+            });
+        });
+
+        function sendCode(code) {
+            if(!code) return;
+
+            // Lấy token chuẩn xác nhất
+            const token = $('input[name="__RequestVerificationToken"]').val();
+
+            Swal.showLoading(); // Hiển thị trạng thái đang xử lý
+
+            $.ajax({
+                url: '@Url.Action("ProcessCheckIn", "BookingManager")',
+                type: 'POST',
+                data: {
+                    qrCode: code,
+                    "__RequestVerificationToken": token
+                },
+                success: function(res) {
+                    if(res.success) {
+                        Swal.fire('Thành công', res.message, 'success').then(() => {
+                            window.location.href = '@Url.Action("Index")';
+                        });
+                    } else {
+                        Swal.fire('Thất bại', res.message, 'error').then(() => {
+                            // Nếu quét sai, cho phép camera chạy lại để quét tiếp
+                            startCamera();
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    console.error("Ajax Error:", xhr.status);
+                    Swal.fire('Lỗi hệ thống', 'Yêu cầu bị từ chối (Mã lỗi ' + xhr.status + '). Kiểm tra lại quyền Admin/Staff.', 'error');
+                }
+            });
+        }
+    </script>
+}

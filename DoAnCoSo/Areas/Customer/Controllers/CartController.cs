@@ -1,16 +1,19 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using DoAnCoSo.Data;
+﻿using DoAnCoSo.Data;
 using DoAnCoSo.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace DoAnCoSo.Areas.Customer.Controllers
 {
     [Area("Customer")]
+    [Authorize]
     public class CartController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -22,36 +25,27 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             _userManager = userManager;
         }
 
-        // 1. Hiển thị giỏ hàng
+        // 1. Hiển thị trang giỏ hàng
         public async Task<IActionResult> Index()
         {
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
-            var userIdStr = _userManager.GetUserId(User);
-
             if (string.IsNullOrEmpty(tableIdStr))
             {
-                // Nếu chưa có bàn, quay lại trang chọn bàn hoặc menu
                 return RedirectToAction("Index", "Menu");
             }
 
             int tableId = int.Parse(tableIdStr);
+            var userIdStr = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdStr)) return Challenge();
+            int userId = int.Parse(userIdStr);
 
-            // Truy vấn lấy giỏ hàng - Ưu tiên theo TableId
-            var query = _context.CartItems
+            // SỬA LỖI: Chỉ lấy món thuộc về BÀN HIỆN TẠI của NGƯỜI DÙNG HIỆN TẠI
+            var cartItems = await _context.CartItems
                 .Include(c => c.Product)
-                .Include(c => c.Table) // Cần thiết để hiện tên bàn
-                .Where(c => c.TableId == tableId);
+                .Include(c => c.Table)
+                .Where(c => c.TableId == tableId && c.UserId == userId)
+                .ToListAsync();
 
-            // Nếu khách đã đăng nhập, lọc thêm theo UserId để bảo mật
-            if (!string.IsNullOrEmpty(userIdStr))
-            {
-                int userId = int.Parse(userIdStr);
-                query = query.Where(c => c.UserId == userId);
-            }
-
-            var cartItems = await query.ToListAsync();
-
-            // Lấy tên bàn: Cách 1 từ dữ liệu Include, Cách 2 từ DB nếu giỏ trống
             var tableInfo = await _context.Tables.FindAsync(tableId);
             ViewBag.TableName = tableInfo?.TableName ?? "N/A";
             ViewBag.TableId = tableId;
@@ -61,78 +55,92 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
         // 2. Thêm món vào giỏ hàng
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddToCart(int productId, int quantity = 1)
         {
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
-            var userIdStr = _userManager.GetUserId(User);
-
             if (string.IsNullOrEmpty(tableIdStr))
             {
-                return Json(new { success = false, message = "Vui lòng quét mã QR tại bàn!" });
+                return Json(new { success = false, message = "Vui lòng quét mã QR tại bàn trước khi đặt món!" });
             }
 
-            int tableId = int.Parse(tableIdStr);
-            int userId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : 0;
-
-            // Tìm món đã có trong giỏ của Bàn này + User này
-            var existingItem = await _context.CartItems
-                .FirstOrDefaultAsync(c => c.ProductId == productId && c.TableId == tableId && c.UserId == userId);
-
-            if (existingItem == null)
+            if (!int.TryParse(tableIdStr, out int tableId))
             {
-                var newItem = new CartItem
-                {
-                    ProductId = productId,
-                    TableId = tableId,
-                    UserId = userId, // Cực kỳ quan trọng để Index lọc được
-                    Quantity = quantity
-                };
-                _context.CartItems.Add(newItem);
-            }
-            else
-            {
-                existingItem.Quantity += quantity;
-                _context.CartItems.Update(existingItem);
+                return Json(new { success = false, message = "Mã bàn không hợp lệ." });
             }
 
-            await _context.SaveChangesAsync();
-
-            var totalCount = await _context.CartItems
-                .Where(c => c.TableId == tableId && c.UserId == userId)
-                .SumAsync(c => c.Quantity);
-
-            return Json(new { success = true, count = totalCount });
-        }
-
-        // 3. Lấy số lượng hiển thị trên Badge icon giỏ hàng
-        [HttpGet]
-        public async Task<IActionResult> GetCartCount()
-        {
-            var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
             var userIdStr = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdStr))
+            {
+                return Json(new { success = false, message = "Vui lòng đăng nhập!" });
+            }
+            int userId = int.Parse(userIdStr);
 
-            if (string.IsNullOrEmpty(tableIdStr)) return Json(0);
+            // Kiểm tra trạng thái bàn/booking để đảm bảo phiên làm việc còn hiệu lực
+            var activeBooking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.TableId == tableId && b.UserId == userId && b.Status == "CheckedIn");
 
-            int tableId = int.Parse(tableIdStr);
-            int userId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : 0;
+            // Lưu ý: Nếu hệ thống của bạn không bắt buộc Booking trước khi ngồi, 
+            // bạn có thể lược bỏ hoặc thay đổi đoạn check activeBooking này.
 
-            var count = await _context.CartItems
-                .Where(c => c.TableId == tableId && c.UserId == userId)
-                .SumAsync(c => c.Quantity);
+            var product = await _context.Products.FindAsync(productId);
+            if (product == null || !product.IsAvailable)
+            {
+                return Json(new { success = false, message = "Sản phẩm hiện không khả dụng." });
+            }
 
-            return Json(count);
+            try
+            {
+                var existingItem = await _context.CartItems
+                    .FirstOrDefaultAsync(c => c.ProductId == productId && c.TableId == tableId && c.UserId == userId);
+
+                if (existingItem == null)
+                {
+                    _context.CartItems.Add(new CartItem
+                    {
+                        ProductId = productId,
+                        TableId = tableId,
+                        UserId = userId,
+                        Quantity = quantity
+                    });
+                }
+                else
+                {
+                    existingItem.Quantity += quantity;
+                    _context.CartItems.Update(existingItem);
+                }
+
+                await _context.SaveChangesAsync();
+
+                var totalCount = await _context.CartItems
+                    .Where(c => c.TableId == tableId && c.UserId == userId)
+                    .SumAsync(c => c.Quantity);
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Đã thêm {product.ProductName} vào giỏ hàng!",
+                    count = totalCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi: " + ex.Message });
+            }
         }
 
-        // 4. Cập nhật số lượng (+/-)
+        // 3. Cập nhật số lượng (+/-)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateQuantity(int productId, int change)
         {
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
-            var userIdStr = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(tableIdStr)) return Json(new { success = false });
 
             int tableId = int.Parse(tableIdStr);
-            int userId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : 0;
+            var userIdStr = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false });
+            int userId = int.Parse(userIdStr);
 
             var item = await _context.CartItems
                 .FirstOrDefaultAsync(c => c.ProductId == productId && c.TableId == tableId && c.UserId == userId);
@@ -140,18 +148,13 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             if (item != null)
             {
                 item.Quantity += change;
-                if (item.Quantity <= 0)
-                    _context.CartItems.Remove(item);
-                else
-                    _context.CartItems.Update(item);
-
+                if (item.Quantity <= 0) _context.CartItems.Remove(item);
+                else _context.CartItems.Update(item);
                 await _context.SaveChangesAsync();
             }
 
-            var cart = await _context.CartItems
-                .Include(c => c.Product)
-                .Where(c => c.TableId == tableId && c.UserId == userId)
-                .ToListAsync();
+            var cart = await _context.CartItems.Include(c => c.Product)
+                .Where(c => c.TableId == tableId && c.UserId == userId).ToListAsync();
 
             return Json(new
             {
@@ -161,16 +164,18 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             });
         }
 
-        // 5. Xóa món
+        // 4. Xóa món khỏi giỏ
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoveItem(int productId)
         {
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
-            var userIdStr = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(tableIdStr)) return Json(new { success = false });
 
             int tableId = int.Parse(tableIdStr);
-            int userId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : 0;
+            var userIdStr = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false });
+            int userId = int.Parse(userIdStr);
 
             var item = await _context.CartItems
                 .FirstOrDefaultAsync(c => c.ProductId == productId && c.TableId == tableId && c.UserId == userId);
@@ -180,46 +185,68 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 _context.CartItems.Remove(item);
                 await _context.SaveChangesAsync();
             }
-
             return Json(new { success = true });
         }
 
-        // 6. Thanh toán / Đặt món
+        // 5. Lấy số lượng cho icon Badge
+        [HttpGet]
+        public async Task<IActionResult> GetCartCount()
+        {
+            var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
+            if (string.IsNullOrEmpty(tableIdStr)) return Json(0);
+
+            int tableId = int.Parse(tableIdStr);
+            var userIdStr = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdStr)) return Json(0);
+            int userId = int.Parse(userIdStr);
+
+            var count = await _context.CartItems
+                .Where(c => c.TableId == tableId && c.UserId == userId)
+                .SumAsync(c => c.Quantity);
+            return Json(count);
+        }
+
+        // 6. XÁC NHẬN ĐẶT MÓN (CHECKOUT)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Checkout()
         {
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
             if (string.IsNullOrEmpty(tableIdStr))
-                return Json(new { success = false, message = "Không tìm thấy thông tin bàn!" });
+            {
+                return Json(new { success = false, message = "Vui lòng quét mã QR tại bàn để đặt món!" });
+            }
 
             int tableId = int.Parse(tableIdStr);
             var userIdStr = _userManager.GetUserId(User);
-            int? currentUserId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : null;
-
-            var cartItems = await _context.CartItems
-                .Include(c => c.Product)
-                .Where(c => c.TableId == tableId && (currentUserId == null || c.UserId == currentUserId))
-                .ToListAsync();
-
-            if (!cartItems.Any())
-                return Json(new { success = false, message = "Giỏ hàng trống!" });
+            if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Lỗi định danh người dùng!" });
+            int userId = int.Parse(userIdStr);
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Cập nhật trạng thái bàn
+                // Lấy giỏ hàng chính xác theo User và Bàn
+                var cartItems = await _context.CartItems
+                    .Include(c => c.Product)
+                    .Where(c => c.UserId == userId && c.TableId == tableId)
+                    .ToListAsync();
+
+                if (!cartItems.Any())
+                    return Json(new { success = false, message = "Giỏ hàng trống!" });
+
+                // A. Cập nhật trạng thái bàn
                 var table = await _context.Tables.FindAsync(tableId);
-                if (table != null)
+                if (table != null && table.Status != "Occupied")
                 {
                     table.Status = "Occupied";
                     _context.Tables.Update(table);
                 }
 
-                // Tạo Order
+                // B. Tạo Order
                 var order = new Order
                 {
                     TableId = tableId,
-                    UserId = currentUserId,
+                    UserId = userId,
                     OrderDate = DateTime.Now,
                     TotalAmount = cartItems.Sum(x => x.Quantity * (x.Product?.Price ?? 0)),
                     Status = "Pending"
@@ -227,7 +254,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
 
-                // Lưu OrderDetails
+                // C. Lưu OrderDetails
                 foreach (var item in cartItems)
                 {
                     _context.OrderDetails.Add(new OrderDetail
@@ -239,7 +266,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                     });
                 }
 
-                // Xóa giỏ hàng
+                // D. Xóa giỏ hàng của bàn này
                 _context.CartItems.RemoveRange(cartItems);
 
                 await _context.SaveChangesAsync();
@@ -250,7 +277,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Json(new { success = false, message = "Lỗi: " + ex.Message });
+                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
             }
         }
     }

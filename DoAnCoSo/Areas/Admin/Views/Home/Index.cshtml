@@ -3,6 +3,7 @@
 }
 
 <div class="container-fluid pt-4">
+    <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-0">TRẠM QUẢN TRỊ MANWAH</h3>
@@ -15,66 +16,93 @@
         </div>
     </div>
 
+    <!-- 5 CARDS THỐNG KÊ -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #2c3e50, #000000); border-radius: 15px;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+        <!-- Thực đơn -->
+        <div class="col-md">
+            <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(45deg, #2c3e50, #000000); border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="small fw-bold text-uppercase opacity-75">Tổng thực đơn</div>
-                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalProducts</div>
+                            <div class="small fw-bold text-uppercase opacity-75">Thực đơn</div>
+                            <div class="h3 mb-0 fw-bold">@ViewBag.TotalProducts</div>
                         </div>
-                        <i class="bi bi-egg-fried fs-1 opacity-25"></i>
+                        <i class="bi bi-egg-fried fs-2 opacity-25"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #c0392b, #8b0000); border-radius: 15px;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+        <!-- Đơn hàng -->
+        <div class="col-md">
+            <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(45deg, #c0392b, #8b0000); border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="small fw-bold text-uppercase opacity-75">Đơn hàng</div>
-                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalOrders</div>
+                            <div class="h3 mb-0 fw-bold">@ViewBag.TotalOrders</div>
                         </div>
-                        <i class="bi bi-cart-check fs-1 opacity-25"></i>
+                        <i class="bi bi-cart-check fs-2 opacity-25"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #27ae60, #1e8449); border-radius: 15px;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+        <!-- Doanh thu -->
+        <div class="col-md">
+            <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(45deg, #27ae60, #1e8449); border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="small fw-bold text-uppercase opacity-75">Doanh thu</div>
-                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalRevenue?.ToString("N0")</div>
+                            <div class="h4 mb-0 fw-bold">@ViewBag.TotalRevenue?.ToString("N0")</div>
                         </div>
-                        <i class="bi bi-currency-dollar fs-1 opacity-25"></i>
+                        <i class="bi bi-currency-dollar fs-2 opacity-25"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(45deg, #f39c12, #d35400); border-radius: 15px;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+        <!-- Khách hàng -->
+        <div class="col-md">
+            <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(45deg, #f39c12, #d35400); border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="small fw-bold text-uppercase opacity-75">Khách hàng</div>
-                            <div class="h2 mb-0 fw-bold">@ViewBag.TotalUsers</div>
+                            <div class="small fw-bold text-uppercase opacity-75">Thành viên</div>
+                            <div class="h3 mb-0 fw-bold">@ViewBag.TotalUsers</div>
                         </div>
-                        <i class="bi bi-people fs-1 opacity-25"></i>
+                        <i class="bi bi-people fs-2 opacity-25"></i>
                     </div>
                 </div>
+            </div>
+        </div>
+        <!-- Đang chờ duyệt (Booking) -->
+        <div class="col-md">
+            <div class="card border-0 shadow-sm text-white h-100 position-relative" style="background: linear-gradient(45deg, #f1c40f, #f39c12); border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-uppercase opacity-75">Chờ duyệt</div>
+                            <div class="h3 mb-0 fw-bold">@ViewBag.PendingBookings</div>
+                        </div>
+                        <i class="bi bi-calendar-event fs-2 opacity-25"></i>
+                    </div>
+                    <a asp-area="Admin" asp-controller="BookingManager" asp-action="Index" class="text-white decoration-none">
+                        Duyệt ngay →
+                    </a>
+                </div>
+                @if (ViewBag.PendingBookings > 0)
+                {
+                    <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle shadow animate-pulse"></span>
+                }
             </div>
         </div>
     </div>
 
+    <!-- BIỂU ĐỒ DOANH THU -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-white py-3">
-                    <h6 class="m-0 fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>BIỂU ĐỒ DOANH THU THEO THÁNG (@DateTime.Now.Year)</h6>
+                    <h6 class="m-0 fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>BIỂU ĐỒ DOANH THU (@DateTime.Now.Year)</h6>
                 </div>
                 <div class="card-body">
                     <canvas id="revenueChart" style="min-height: 350px;"></canvas>
@@ -83,10 +111,11 @@
         </div>
     </div>
 
+    <!-- DANH SÁCH ĐƠN HÀNG MỚI NHẤT -->
     <div class="card shadow-sm border-0" style="border-radius: 15px;">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 fw-bold text-danger"><i class="bi bi-bell-fill me-2"></i>DANH SÁCH ĐẶT BÀN MỚI NHẤT</h6>
-            <span class="badge bg-light text-dark border">Tất cả đơn hàng</span>
+            <h6 class="m-0 fw-bold text-danger"><i class="bi bi-bell-fill me-2"></i>ĐƠN HÀNG MỚI NHẤT</h6>
+            <a asp-controller="Order" asp-action="Index" class="btn btn-sm btn-light border fw-bold text-dark">Xem tất cả</a>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -112,17 +141,25 @@
                                     <td>@(order.User?.PhoneNumber ?? "N/A")</td>
                                     <td>@order.OrderDate.ToString("HH:mm dd/MM/yyyy")</td>
                                     <td>
-                                        @if (order.Status == "Hoàn thành")
+                                        @if (order.Status == "Completed")
                                         {
-                                            <span class="badge bg-success-subtle text-success border border-success">Hoàn thành</span>
+                                            <span class="badge bg-success-subtle text-success border border-success">Đã phục vụ</span>
+                                        }
+                                        else if (order.Status == "Pending")
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">Chờ xác nhận</span>
+                                        }
+                                        else if (order.Status == "Cancelled")
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger">Đã hủy</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">Đang xử lý</span>
+                                            <span class="badge bg-info-subtle text-info border border-info">@order.Status</span>
                                         }
                                     </td>
                                     <td class="text-end pe-4">
-                                        <a asp-controller="Order" asp-action="Details" asp-route-id="@order.OrderId" class="btn btn-sm btn-dark rounded-pill">Chi tiết</a>
+                                        <a asp-controller="Order" asp-action="Index" asp-route-searchTable="@order.OrderId" class="btn btn-sm btn-dark rounded-pill px-3">Chi tiết</a>
                                     </td>
                                 </tr>
                             }
@@ -130,7 +167,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">Chưa có dữ liệu đơn hàng nào được ghi nhận.</td>
+                                <td colspan="6" class="text-center py-5 text-muted">Chưa có dữ liệu đơn hàng nào.</td>
                             </tr>
                         }
                     </tbody>
@@ -139,6 +176,22 @@
         </div>
     </div>
 </div>
+
+<style>
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: .5;
+        }
+    }
+</style>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -166,16 +219,12 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
                         y: {
                             beginAtZero: true,
                             ticks: {
-                                callback: function(value) {
-                                    return value.toLocaleString('vi-VN') + ' đ';
-                                }
+                                callback: function(value) { return value.toLocaleString('vi-VN') + ' đ'; }
                             }
                         }
                     }

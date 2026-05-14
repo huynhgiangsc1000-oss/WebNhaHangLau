@@ -13,132 +13,127 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         private readonly ApplicationDbContext _context;
         public OrderController(ApplicationDbContext context) => _context = context;
 
-        // 1. HIỂN THỊ DANH SÁCH ĐƠN HÀNG (CÓ LỌC & TÌM KIẾM)
-        public async Task<IActionResult> Index(string status, string searchTable)
+        // 1. HIỂN THỊ DANH SÁCH ĐƠN HÀNG
+        public async Task<IActionResult> Index(string status, string searchQuery, DateTime? searchDate)
         {
             var query = _context.Orders
                 .Include(o => o.Table)
-                .Include(o => o.User)
+                .Include(o => o.User).ThenInclude(u => u.Rank)
+                .Include(o => o.Promotion)
                 .AsQueryable();
 
-            // Lọc theo trạng thái
-            if (!string.IsNullOrEmpty(status))
+            if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
+
+            if (!string.IsNullOrEmpty(searchQuery))
             {
-                query = query.Where(o => o.Status == status);
+                if (int.TryParse(searchQuery.Replace("#", ""), out int orderId))
+                    query = query.Where(o => o.OrderId == orderId);
+                else
+                    query = query.Where(o => o.Table.TableName.Contains(searchQuery));
             }
 
-            // Tìm theo tên bàn
-            if (!string.IsNullOrEmpty(searchTable))
-            {
-                query = query.Where(o => o.Table.TableName.Contains(searchTable));
-            }
+            if (searchDate.HasValue) query = query.Where(o => o.OrderDate.Date == searchDate.Value.Date);
 
-            var orders = await query
-                .OrderByDescending(o => o.OrderDate)
-                .ToListAsync();
+            var orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
 
             ViewBag.CurrentStatus = status;
-            ViewBag.CurrentSearch = searchTable;
+            ViewBag.CurrentSearch = searchQuery;
+            ViewBag.CurrentDate = searchDate?.ToString("yyyy-MM-dd");
 
             return View(orders);
         }
 
-        // 2. LẤY CHI TIẾT ĐƠN HÀNG (DÙNG CHO MODAL)
+        // 2. CẬP NHẬT TRẠNG THÁI (Logic quan trọng nhất)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateStatus(int id, string Status)
+        {
+            using (var transaction = await _context.Database.BeginTransactionAsync())
+            {
+                try
+                {
+                    var order = await _context.Orders
+                        .Include(o => o.Table)
+                        .Include(o => o.User)
+                        .FirstOrDefaultAsync(o => o.OrderId == id);
+
+                    if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng" });
+
+                    // Gán trạng thái mới
+                    order.Status = Status;
+
+                    // NẾU ADMIN XÁC NHẬN "COMPLETED" (ĐÃ THU TIỀN XONG)
+                    if (Status == "Completed")
+                    {
+                        // 1. Giải phóng bàn vật lý (Chuyển xanh)
+                        if (order.Table != null)
+                        {
+                            order.Table.Status = "Empty";
+                        }
+
+                        // 2. Đóng phiên đặt bàn (Booking)
+                        var activeBooking = await _context.Bookings
+                            .FirstOrDefaultAsync(b => b.TableId == order.TableId &&
+                                                     b.UserId == order.UserId &&
+                                                     b.Status == "CheckedIn");
+                        if (activeBooking != null)
+                        {
+                            activeBooking.Status = "Completed";
+                        }
+
+                        // 3. Cộng điểm tích lũy (10k = 1 điểm)
+                        if (order.User != null)
+                        {
+                            order.User.Points += (int)(order.TotalAmount / 10000);
+                            await UpdateUserRank(order.User);
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return Json(new { success = true });
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = ex.Message });
+                }
+            }
+        }
+
+        private async Task UpdateUserRank(User user)
+        {
+            var ranks = await _context.Set<Rank>().OrderByDescending(r => r.RequiredPoints).ToListAsync();
+            foreach (var rank in ranks)
+            {
+                if (user.Points >= rank.RequiredPoints)
+                {
+                    user.RankId = rank.RankId;
+                    break;
+                }
+            }
+        }
+
         public async Task<IActionResult> GetDetails(int id)
         {
             var order = await _context.Orders
                 .Include(o => o.OrderDetails).ThenInclude(d => d.Product)
                 .Include(o => o.Table)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
+                .Include(o => o.Promotion)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
-
-            if (order == null) return NotFound();
             return PartialView("_OrderDetailModal", order);
         }
 
-        // 3. CẬP NHẬT TRẠNG THÁI & XỬ LÝ ĐIỂM THƯỞNG
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateStatus(int id, string status)
+        public async Task<IActionResult> PrintInvoice(int id)
         {
-            // Lấy đơn hàng bao gồm thông tin Bàn và Khách hàng để xử lý logic thanh toán
             var order = await _context.Orders
                 .Include(o => o.Table)
-                .Include(o => o.User)
-                .FirstOrDefaultAsync(o => o.OrderId == id);
-
-            if (order == null)
-                return Json(new { success = false, message = "Không tìm thấy đơn hàng!" });
-
-            // Nếu đơn hàng đã Paid hoặc Cancelled thì không cho đổi trạng thái nữa (tùy nghiệp vụ)
-            if (order.Status == "Paid" || order.Status == "Cancelled")
-                return Json(new { success = false, message = "Đơn hàng đã hoàn tất hoặc đã hủy, không thể thay đổi." });
-
-            try
-            {
-                string oldStatus = order.Status;
-                order.Status = status;
-
-                // --- LOGIC KHI THANH TOÁN THÀNH CÔNG (PAID) ---
-                if (status == "Paid")
-                {
-                    // 1. Giải phóng bàn
-                    if (order.Table != null)
-                    {
-                        order.Table.Status = "Empty";
-                    }
-
-                    // 2. Cộng điểm tích lũy cho khách hàng (Nếu đơn hàng có gắn User)
-                    if (order.UserId != null && order.User != null)
-                    {
-                        // Quy tắc: 10,000đ = 1 điểm (Bạn có thể sửa lại tỉ lệ này)
-                        int earnedPoints = (int)(order.TotalAmount / 10000);
-                        order.User.Points += earnedPoints;
-
-                        // 3. Tự động kiểm tra và cập nhật hạng (Rank)
-                        await UpdateUserRank(order.User);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Cập nhật trạng thái thành công!" });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = "Lỗi: " + ex.Message });
-            }
-        }
-
-        // PHƯƠNG THỨC HỖ TRỢ: TỰ ĐỘNG CẬP NHẬT HẠNG THEO ĐIỂM
-        private async Task UpdateUserRank(User user)
-        {
-            // Lấy danh sách tất cả các hạng, sắp xếp theo điểm yêu cầu giảm dần
-            var ranks = await _context.Set<Rank>().OrderByDescending(r => r.RequiredPoints).ToListAsync();
-
-            foreach (var rank in ranks)
-            {
-                if (user.Points >= rank.RequiredPoints)
-                {
-                    user.RankId = rank.RankId;
-                    break; // Tìm được hạng cao nhất phù hợp thì dừng lại
-                }
-            }
-        }
-
-        // 4. XÓA ĐƠN HÀNG (CHỈ NÊN CHO XÓA KHI TRẠNG THÁI LÀ CANCELLED)
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteOrder(int id)
-        {
-            var order = await _context.Orders.FindAsync(id);
-            if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng" });
-
-            if (order.Status != "Cancelled")
-                return Json(new { success = false, message = "Chỉ có thể xóa đơn hàng đã hủy!" });
-
-            _context.Orders.Remove(order);
-            await _context.SaveChangesAsync();
-            return Json(new { success = true });
+                .Include(o => o.Promotion)
+                .Include(o => o.User).ThenInclude(u => u.Rank)
+                .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
+                .FirstOrDefaultAsync(m => m.OrderId == id);
+            return View(order);
         }
     }
 }

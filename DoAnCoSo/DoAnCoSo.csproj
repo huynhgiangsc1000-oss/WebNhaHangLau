@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.16.0" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="9.0.12" />
@@ -19,6 +20,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.12" />
+    <PackageReference Include="MimeKit" Version="4.16.0" />
     <PackageReference Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 
@@ -28,7 +30,7 @@
     <Folder Include="Areas\Customer\Data\" />
     <Folder Include="Areas\Customer\Models\" />
     <Folder Include="Controllers\" />
-    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\images\promotions\" />
   </ItemGroup>
 
 </Project>

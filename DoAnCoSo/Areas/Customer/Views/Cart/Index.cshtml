@@ -3,8 +3,6 @@
 @{
     ViewData["Title"] = "Giỏ hàng";
     Layout = "_Layout";
-
-    // Ưu tiên lấy TableName từ món ăn trong Model, nếu Model trống thì lấy từ ViewBag
     var displayTableName = Model.FirstOrDefault()?.Table?.TableName ?? ViewBag.TableName ?? "N/A";
 }
 
@@ -12,7 +10,6 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold">
             <i class="fas fa-shopping-cart text-danger"></i> Giỏ hàng của:
-            @* Hiển thị tên bàn với style nổi bật *@
             <span class="badge rounded-pill bg-danger shadow-sm px-3">
                 <i class="fas fa-chair me-1"></i> @displayTableName
             </span>
@@ -21,11 +18,9 @@
             <i class="fas fa-chevron-left me-2"></i>Thêm món khác
         </a>
     </div>
-</div>
 
     <div id="cart-container" class="card shadow-sm border-0 rounded-4">
         <div class="card-body p-0">
-            @* p-0 để bảng sát viền card nhìn hiện đại hơn *@
             @if (Model != null && Model.Any())
             {
                 <div class="table-responsive">
@@ -58,20 +53,27 @@
                                     </td>
                                     <td class="text-center fw-medium">@item.Product.Price.ToString("N0") đ</td>
                                     <td>
-                                        <div class="input-group input-group-sm justify-content-center">
-                                            <button class="btn btn-light border shadow-sm px-2" onclick="updateQuantity(@item.ProductId, -1)">
-                                                <i class="fas fa-minus fa-xs"></i>
+                                        @* BỘ NÚT TĂNG GIẢM SỐ LƯỢNG *@
+                                        <div class="d-flex align-items-center justify-content-center border rounded-pill p-1" style="max-width: 120px; margin: 0 auto; background: #f8f9fa;">
+                                            <button class="btn btn-sm btn-white border-0 rounded-circle shadow-none p-1"
+                                                    onclick="updateQuantity(@item.ProductId, -1)">
+                                                <i class="fas fa-minus text-muted" style="font-size: 0.8rem;"></i>
                                             </button>
-                                            <input type="text" class="form-control text-center fw-bold border-0 bg-transparent"
-                                                   value="@item.Quantity" style="max-width: 45px;" readonly>
-                                            <button class="btn btn-light border shadow-sm px-2" onclick="updateQuantity(@item.ProductId, 1)">
-                                                <i class="fas fa-plus fa-xs"></i>
+
+                                            <span class="mx-3 fw-bold" style="min-width: 20px; text-align: center;">@item.Quantity</span>
+
+                                            <button class="btn btn-sm btn-white border-0 rounded-circle shadow-none p-1"
+                                                    onclick="updateQuantity(@item.ProductId, 1)">
+                                                <i class="fas fa-plus text-danger" style="font-size: 0.8rem;"></i>
                                             </button>
                                         </div>
                                     </td>
                                     <td class="text-end text-danger fw-bold">@((item.Quantity * item.Product.Price).ToString("N0")) đ</td>
                                     <td class="text-center pe-4">
-                                        <button class="btn btn-sm btn-link text-muted hover-danger" onclick="removeItem(@item.ProductId)">
+                                        @* NÚT XÓA *@
+                                        <button class="btn btn-sm btn-light rounded-circle hover-danger shadow-sm"
+                                                onclick="removeItem(@item.ProductId)"
+                                                style="width: 35px; height: 35px;">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </td>
@@ -110,28 +112,53 @@
     </div>
 </div>
 
+@Html.AntiForgeryToken()
+
 <style>
     .hover-danger:hover {
+        background-color: #fff5f5 !important;
         color: #dc3545 !important;
+        border-color: #dc3545 !important;
     }
 
     .table-hover tbody tr:hover {
         background-color: #fffafb;
     }
 
-    .badge.bg-danger {
-        font-size: 0.9rem;
-        padding: 0.6em 1.2em;
+    .btn-white {
+        background-color: white;
     }
+
+        .btn-white:hover {
+            background-color: #eee;
+        }
 </style>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        function getCsrfToken() {
+            return $('input[name="__RequestVerificationToken"]').val();
+        }
+
         function updateQuantity(pId, change) {
-            // Hiện loading nhẹ
-            $.post('/Customer/Cart/UpdateQuantity', { productId: pId, change: change }, function() {
-                location.reload();
+            // Hiển thị loading nhẹ hoặc disable nút để tránh spam click
+            $.ajax({
+                url: '/Customer/Cart/UpdateQuantity',
+                type: 'POST',
+                data: {
+                    productId: pId,
+                    change: change,
+                    "__RequestVerificationToken": getCsrfToken()
+                },
+                success: function (res) {
+                    if (res.success) {
+                        location.reload();
+                    }
+                },
+                error: function() {
+                    console.error("Lỗi cập nhật số lượng");
+                }
             });
         }
 
@@ -139,27 +166,36 @@
             Swal.fire({
                 title: 'Xóa món ăn?',
                 text: "Bạn có chắc muốn bỏ món này khỏi giỏ hàng?",
-                icon: 'question',
+                icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 confirmButtonText: 'Đồng ý xóa',
                 cancelButtonText: 'Hủy'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    $.post('/Customer/Cart/RemoveItem', { productId: productId }, function (response) {
-                        if (response.success) {
-                            location.reload();
+                    $.ajax({
+                        url: '/Customer/Cart/RemoveItem',
+                        type: 'POST',
+                        data: {
+                            productId: productId,
+                            "__RequestVerificationToken": getCsrfToken()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                location.reload();
+                            }
                         }
                     });
                 }
             });
         }
 
+              // 3. XÁC NHẬN ĐẶT MÓN (CHECKOUT)
         function confirmCheckout() {
             Swal.fire({
                 title: 'Xác nhận đặt món?',
                 text: "Yêu cầu của bạn sẽ được gửi trực tiếp đến nhà bếp!",
-                icon: 'warning',
+                icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#198754',
                 confirmButtonText: 'Đúng, đặt ngay!',
@@ -167,24 +203,33 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.fire({
-                        title: 'Đang xử lý...',
+                        title: 'Đang gửi đơn hàng...',
                         allowOutsideClick: false,
                         didOpen: () => { Swal.showLoading() }
                     });
 
-                    $.post('/Customer/Cart/Checkout', function (res) {
-                        if (res.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Đặt món thành công!',
-                                text: 'Vui lòng đợi trong giây lát, bếp đang chuẩn bị.',
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(() => {
-                                window.location.href = '/Customer/Order/OrderHistory'; // Chuyển về lịch sử để theo dõi
-                            });
-                        } else {
-                            Swal.fire('Thất bại', res.message, 'error');
+                    $.ajax({
+                        url: '/Customer/Cart/Checkout',
+                        type: 'POST',
+                        data: {
+                            "__RequestVerificationToken": getCsrfToken()
+                        },
+                        success: function (res) {
+                            if (res.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Đặt món thành công!',
+                                    text: 'Bếp đã nhận được đơn hàng của bạn.',
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                }).then(() => {
+                                    // CHỖ THAY ĐỔI: Chuyển hướng sang trang chi tiết đơn hàng vừa tạo
+                                    // Giả sử server trả về orderId trong res.orderId
+                                    window.location.href = '/Customer/Order/OrderDetails/' + res.orderId;
+                                });
+                            } else {
+                                Swal.fire('Thất bại', res.message, 'error');
+                            }
                         }
                     });
                 }

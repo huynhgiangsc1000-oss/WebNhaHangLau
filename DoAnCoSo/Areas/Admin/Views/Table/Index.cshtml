@@ -5,42 +5,74 @@
 }
 
 <div class="container-fluid shadow-sm p-4 bg-white rounded">
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="fw-bold text-dark mb-1"><i class="bi bi-grid-3x3-gap me-2"></i>Sơ đồ nhà hàng</h4>
-            <p class="text-muted small mb-0">Quản lý trạng thái bàn và mã QR gọi món</p>
+            <p class="text-muted small mb-0">Quản lý trạng thái bàn và mã QR gọi món thời gian thực</p>
         </div>
         <a asp-area="Admin" asp-controller="Table" asp-action="Create" class="btn btn-danger shadow-sm rounded-pill px-4">
             <i class="bi bi-plus-lg me-1"></i> Thêm bàn mới
         </a>
     </div>
 
-    <div class="d-flex gap-4 mb-4 pb-3 border-bottom">
+    <!-- Chú thích trạng thái -->
+    <div class="d-flex flex-wrap gap-4 mb-4 pb-3 border-bottom">
         <div class="d-flex align-items-center small">
-            <span class="badge bg-success me-2">&nbsp;</span> Bàn trống
+            <span class="badge bg-success me-2" style="width: 15px; height: 15px; border-radius: 4px;">&nbsp;</span> Bàn trống
         </div>
         <div class="d-flex align-items-center small">
-            <span class="badge bg-danger me-2">&nbsp;</span> Đang có khách/Chờ món
+            <span class="badge bg-warning me-2" style="width: 15px; height: 15px; border-radius: 4px;">&nbsp;</span> Có lịch đặt hôm nay
+        </div>
+        <div class="d-flex align-items-center small">
+            <span class="badge bg-danger me-2" style="width: 15px; height: 15px; border-radius: 4px;">&nbsp;</span> Đang có khách/Chờ món
         </div>
     </div>
 
+    <!-- Danh sách bàn -->
     <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
         @foreach (var item in Model)
         {
-            // Logic màu sắc: Busy, Occupied, Reserved...
+            // 1. Logic kiểm tra đặt chỗ trong ngày
+            var bookingToday = item.Bookings?.FirstOrDefault(b =>
+            b.Status == "Confirmed" && b.BookingDate.Date == DateTime.Today);
+
             bool isOccupied = (item.Status == "Busy" || item.Status == "Occupied");
-            string statusClass = isOccupied ? "table-occupied" : "table-empty";
-            string statusText = isOccupied ? "Đang có khách" : "Bàn trống";
+            bool isReservedToday = bookingToday != null;
+
+            // 2. Định dạng CSS và Text
+            string statusClass = isOccupied ? "table-occupied" : (isReservedToday ? "table-reserved" : "table-empty");
+            string statusText = isOccupied ? "Đang có khách" : (isReservedToday ? "Đã đặt trước" : "Bàn trống");
 
             <div class="col" id="table-card-@item.TableId">
                 <div class="card h-100 border-0 shadow-sm table-card @statusClass">
                     <div class="card-body text-center p-4">
+                        <!-- Icon và Tên bàn -->
                         <i class="bi bi-tablet-landscape mb-2 fs-3"></i>
                         <h5 class="fw-bold mb-1">@item.TableName</h5>
-                        <p class="small mb-3 status-label">@statusText</p>
+                        <div class="mb-2">
+                            <small class="badge bg-light text-dark border fw-normal">
+                                <i class="bi bi-people-fill me-1"></i> @item.Capacity người
+                            </small>
+                        </div>
+                        <p class="small mb-1 status-label">@statusText</p>
 
-                        <div class="qr-wrapper mx-auto mb-3">
-                            <div class="qr-container bg-white p-2 rounded shadow-sm">
+                        <!-- Detail: Hiển thị giờ hẹn nếu có lịch hôm nay -->
+                        <div class="booking-detail" style="height: 35px;">
+                            @if (isReservedToday && !isOccupied)
+                            {
+                                <div class="d-flex flex-column align-items-center">
+                                    <span class="badge rounded-pill bg-warning text-dark animate__animated animate__pulse animate__infinite">
+                                        <i class="bi bi-clock me-1"></i> @bookingToday.BookingDate.ToString("HH:mm")
+                                    </span>
+                                    <small class="text-muted" style="font-size: 10px;">@bookingToday.FullName</small>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- QR Code Section -->
+                        <div class="qr-wrapper mx-auto mb-3 mt-2">
+                            <div class="qr-container bg-white p-2 rounded shadow-sm border">
                                 @if (!string.IsNullOrEmpty(item.QrCode))
                                 {
                                     <img src="@item.QrCode" class="img-fluid qr-img" alt="QR @item.TableName" />
@@ -51,31 +83,35 @@
                                 }
                             </div>
                             <form asp-action="RefreshQRCode" asp-route-id="@item.TableId" method="post" class="refresh-qr-form">
-                                <button type="submit" class="btn-refresh-qr" title="Cập nhật lại link QR">
+                                <button type="submit" class="btn-refresh-qr" title="Làm mới QR">
                                     <i class="bi bi-arrow-repeat"></i>
                                 </button>
                             </form>
                         </div>
 
-                        <div class="d-flex justify-content-center gap-2 mt-2">
+                        <!-- Nhóm nút chức năng -->
+                        <div class="d-flex justify-content-center gap-2 mt-3">
+                            <!-- Nút In (Details) -->
                             <a asp-action="Details" asp-route-id="@item.TableId"
-                               class="btn btn-sm btn-light rounded-circle border shadow-sm" title="In mã QR">
+                               class="btn btn-sm btn-light rounded-circle border shadow-sm action-btn" title="Xem chi tiết & In QR">
                                 <i class="bi bi-printer text-dark"></i>
                             </a>
 
+                            <!-- Nút Giải phóng bàn (Chỉ hiện khi bàn bận) -->
                             @if (isOccupied)
                             {
-                                <form asp-action="ResetTable" asp-route-id="@item.TableId" method="post">
-                                    <button type="submit" class="btn btn-sm btn-success rounded-circle shadow-sm"
-                                            title="Giải phóng bàn (Đưa về trống)"
-                                            onclick="return confirm('Xác nhận khách đã rời bàn và thanh toán?')">
+                                <form asp-action="ResetTable" asp-route-id="@item.TableId" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success rounded-circle shadow-sm action-btn"
+                                            title="Thanh toán / Giải phóng bàn"
+                                            onclick="return confirm('Xác nhận khách đã rời bàn?')">
                                         <i class="bi bi-check2-all"></i>
                                     </button>
                                 </form>
                             }
 
+                            <!-- Nút Xóa -->
                             <a asp-action="Delete" asp-route-id="@item.TableId"
-                               class="btn btn-sm btn-outline-danger rounded-circle shadow-sm"
+                               class="btn btn-sm btn-outline-danger rounded-circle shadow-sm action-btn"
                                title="Xóa bàn" onclick="return confirm('Bạn có chắc muốn xóa bàn này?')">
                                 <i class="bi bi-trash"></i>
                             </a>
@@ -88,6 +124,7 @@
 </div>
 
 <style>
+    /* Card hiệu ứng chung */
     .table-card {
         transition: all 0.3s cubic-bezier(.25,.8,.25,1);
         border: 2px solid transparent !important;
@@ -96,14 +133,14 @@
 
         .table-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.12) !important;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
         }
 
-    /* QR Wrapper & Hover effect */
+    /* Định dạng QR */
     .qr-wrapper {
         position: relative;
-        width: 110px;
-        height: 110px;
+        width: 100px;
+        height: 100px;
     }
 
     .qr-container {
@@ -120,6 +157,7 @@
         transform: scale(1.1);
     }
 
+    /* Nút làm mới QR nhỏ xinh */
     .btn-refresh-qr {
         position: absolute;
         bottom: -5px;
@@ -135,14 +173,16 @@
         justify-content: center;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         color: #6c757d;
+        transition: 0.2s;
     }
 
         .btn-refresh-qr:hover {
-            background: #f8f9fa;
-            color: #0d6efd;
+            background: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
         }
 
-    /* Bàn trống - Màu xanh dịu */
+    /* TRẠNG THÁI 1: BÀN TRỐNG (Xanh) */
     .table-empty {
         background-color: #f0fff4 !important;
         border-color: #c6f6d5 !important;
@@ -153,7 +193,18 @@
             font-weight: 600;
         }
 
-    /* Bàn đang có khách - Màu đỏ nhạt */
+    /* TRẠNG THÁI 2: ĐÃ ĐẶT TRƯỚC (Vàng) */
+    .table-reserved {
+        background-color: #fffaf0 !important;
+        border-color: #fbd38d !important;
+    }
+
+        .table-reserved .status-label, .table-reserved i.bi-tablet-landscape {
+            color: #dd6b20;
+            font-weight: 600;
+        }
+
+    /* TRẠNG THÁI 3: ĐANG CÓ KHÁCH (Đỏ) */
     .table-occupied {
         background-color: #fff5f5 !important;
         border-color: #feb2b2 !important;
@@ -164,11 +215,32 @@
             font-weight: 600;
         }
 
-    .btn-sm.rounded-circle {
-        width: 34px;
-        height: 34px;
+    /* Nút hành động tròn */
+    .action-btn {
+        width: 36px;
+        height: 36px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        transition: 0.2s;
+    }
+
+    /* Animation cho badge giờ hẹn */
+    @@keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .animate__pulse {
+        animation: pulse 2s infinite;
     }
 </style>

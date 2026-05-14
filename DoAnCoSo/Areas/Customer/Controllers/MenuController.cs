@@ -20,89 +20,111 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
         public async Task<IActionResult> Index(int? categoryId)
         {
-            // 1. Quản lý thông tin bàn từ Session/Cookie
-            var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
-            ViewBag.HasTable = !string.IsNullOrEmpty(tableIdStr);
-            ViewBag.TableId = tableIdStr;
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return RedirectToAction("Login", "Account");
 
-            // 2. Lấy danh sách danh mục (Gốc) để hiển thị Sidebar
+            // 1. Lấy TableId từ Session hoặc Cookie
+            var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
+
+            if (!string.IsNullOrEmpty(tableIdStr))
+            {
+                int tableId = int.Parse(tableIdStr);
+
+                // Kiểm tra xem có Order nào của NGƯỜI KHÁC đang ngồi đây không
+                var otherActiveOrder = await _context.Orders
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.TableId == tableId
+                                           && o.UserId != user.Id
+                                           && o.Status != "Completed"
+                                           && o.Status != "Cancelled");
+
+                if (otherActiveOrder != null)
+                {
+                    // Nếu thực sự là khách khác đang dùng đơn này
+                    HttpContext.Session.Remove("TableId");
+                    Response.Cookies.Delete("SavedTableId");
+                    TempData["Error"] = "Bàn này đang được sử dụng bởi khách khác!";
+                    return RedirectToAction("Index", "Table");
+                }
+
+                // --- PHẦN QUAN TRỌNG: Kiểm tra quyền sở hữu bàn ---
+                // Cho phép vào menu nếu: 
+                // - Có đơn hàng của mình ĐANG CHẠY 
+                // - HOẶC có lịch đặt bàn đã CheckedIn 
+                // - HOẶC bàn đang Occupied và mình vừa mới quét mã xong (kiểm tra qua Session)
+
+                var hasBooking = await _context.Bookings
+                    .AnyAsync(b => b.TableId == tableId && b.UserId == user.Id && b.Status == "CheckedIn");
+
+                var hasMyOrder = await _context.Orders
+                    .AnyAsync(o => o.TableId == tableId && o.UserId == user.Id && o.Status != "Completed" && o.Status != "Cancelled");
+
+                var table = await _context.Tables.AsNoTracking().FirstOrDefaultAsync(t => t.TableId == tableId);
+
+                // SỬA LẠI ĐIỀU KIỆN CHẶN: 
+                // Chỉ đuổi ra nếu bàn Occupied mà KHÔNG PHẢI do mình (không đơn, không booking, không phải người vừa quét mã)
+                // Lưu ý: Nếu tableIdStr lấy từ Session tức là họ vừa quét mã thành công ở TableController
+                if (table?.Status == "Occupied" && !hasBooking && !hasMyOrder && string.IsNullOrEmpty(HttpContext.Session.GetString("TableId")))
+                {
+                    HttpContext.Session.Remove("TableId");
+                    return RedirectToAction("Index", "Table");
+                }
+
+                ViewBag.TableId = tableIdStr;
+                ViewBag.TableName = table?.TableName;
+            }
+            else
+            {
+                // Tự động khôi phục bàn từ Booking CheckedIn (giữ nguyên logic của bạn)
+                var myCheckedInBooking = await _context.Bookings
+                    .Where(b => b.UserId == user.Id && b.Status == "CheckedIn")
+                    .OrderByDescending(b => b.BookingDate)
+                    .FirstOrDefaultAsync();
+
+                if (myCheckedInBooking != null && myCheckedInBooking.TableId.HasValue)
+                {
+                    tableIdStr = myCheckedInBooking.TableId.Value.ToString();
+                    HttpContext.Session.SetString("TableId", tableIdStr);
+                    ViewBag.TableId = tableIdStr;
+                    var table = await _context.Tables.FindAsync(myCheckedInBooking.TableId);
+                    ViewBag.TableName = table?.TableName;
+                }
+            }
+
+            ViewBag.HasTable = !string.IsNullOrEmpty(tableIdStr);
+
+            // --- PHẦN LOAD SẢN PHẨM GIỮ NGUYÊN NHƯ CŨ ---
             var categories = await _context.Categories
                 .Include(c => c.SubCategories)
                 .Where(c => c.ParentId == null)
                 .AsNoTracking()
                 .ToListAsync();
 
-            List<Product> products;
+            IQueryable<Product> productQuery = _context.Products
+                .Include(p => p.Category)
+                .Where(p => p.IsAvailable)
+                .AsNoTracking();
 
             if (categoryId.HasValue)
             {
-                var allCategories = await _context.Categories.AsNoTracking().ToListAsync();
+                var allCats = await _context.Categories.AsNoTracking().ToListAsync();
                 var idsList = new List<int>();
-                GetCategoryIdsRecursive(categoryId.Value, allCategories, idsList);
-
-                // FIX CHỐT: Đảm bảo đây là một danh sách số nguyên sạch
-                var finalIds = idsList.Distinct().ToList();
-
-                // Thay vì dùng IQueryable, ta lấy dữ liệu thô về rồi lọc 
-                // (Vì bảng Product thường không quá lớn, cách này cực kỳ an toàn)
-                var allAvailableProducts = await _context.Products
-                    .Include(p => p.Category)
-                    .Where(p => p.IsAvailable)
-                    .AsNoTracking()
-                    .ToListAsync();
-
-                products = allAvailableProducts
-                    .Where(p => finalIds.Contains(p.CategoryId))
-                    .ToList();
-
+                GetCategoryIdsRecursive(categoryId.Value, allCats, idsList);
+                productQuery = productQuery.Where(p => idsList.Contains(p.CategoryId));
                 ViewBag.CurrentCategory = categoryId;
             }
-            else
-            {
-                // Nếu không lọc: Lấy tất cả sản phẩm đang kinh doanh
-                products = await _context.Products
-                    .Include(p => p.Category)
-                    .Where(p => p.IsAvailable)
-                    .AsNoTracking()
-                    .ToListAsync();
-            }
 
-            // Chuẩn hóa ImagePath trước khi gửi sang View để bạn dùng được dấu ~
-            // Nếu ImagePath trong DB là "hinh1.jpg", nó sẽ được giữ nguyên để View dùng ~/images/hinh1.jpg
-            // Nếu ImagePath null, ta gán một tên file mặc định
-            foreach (var p in products)
-            {
-                if (string.IsNullOrEmpty(p.ImagePath))
-                {
-                    p.ImagePath = "no-image.png";
-                }
-            }
-
+            var products = await productQuery.ToListAsync();
             ViewBag.Categories = categories;
             return View(products);
         }
 
-        /// <summary>
-        /// Hàm hỗ trợ đệ quy để lấy ID cha và toàn bộ ID danh mục con
-        /// </summary>
         private void GetCategoryIdsRecursive(int parentId, List<Category> allCats, List<int> result)
         {
-            if (!result.Contains(parentId))
-            {
-                result.Add(parentId);
-            }
-
-            var childIds = allCats
-                .Where(c => c.ParentId == parentId)
-                .Select(c => c.CategoryId)
-                .ToList();
-
-            foreach (var id in childIds)
-            {
-                GetCategoryIdsRecursive(id, allCats, result);
-            }
+            if (!result.Contains(parentId)) result.Add(parentId);
+            var childIds = allCats.Where(c => c.ParentId == parentId).Select(c => c.CategoryId).ToList();
+            foreach (var id in childIds) GetCategoryIdsRecursive(id, allCats, result);
         }
-
         // Thêm vào MenuController.cs
         public async Task<IActionResult> GetProductDetail(int id)
         {

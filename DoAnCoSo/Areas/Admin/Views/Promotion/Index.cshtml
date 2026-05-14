@@ -1,0 +1,133 @@
+﻿@model IEnumerable<DoAnCoSo.Models.Promotion>
+
+@{
+    ViewData["Title"] = "Quản lý Khuyến mãi";
+}
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary fw-bold mb-0">QUẢN LÝ VOUCHER & ƯU ĐÃI</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Promotion</li>
+                </ol>
+            </nav>
+        </div>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> Tạo chiến dịch mới
+        </a>
+    </div>
+
+    <div class="card shadow border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-table me-2"></i>Danh sách ưu đãi đang có</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 120px;">Hình ảnh</th>
+                            <th>Tiêu đề & Nội dung</th>
+                            <th class="text-center">Mã Coupon</th>
+                            <th class="text-center">Giảm giá</th>
+                            <th class="text-center">Thời hạn</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-center" style="width: 150px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            // Logic kiểm tra trạng thái còn hạn hay không
+                            var isExpired = item.EndDate < DateTime.Now;
+                            var isComingSoon = item.StartDate > DateTime.Now;
+
+                            <tr>
+                                <td>
+                                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/images/no-promo.png" : item.ImageUrl)"
+                                         width="100" height="60" style="object-fit: cover;" class="rounded shadow-sm" />
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">@item.Title</div>
+                                    <small class="text-muted d-block text-truncate" style="max-width: 250px;">@item.Description</small>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-success-soft text-success border border-success px-3">@item.CouponCode</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="fw-bold text-danger fs-5">@item.DiscountValue%</span>
+                                </td>
+                                <td class="text-center">
+                                    <small class="d-block">Từ: @item.StartDate.ToString("dd/MM/yyyy")</small>
+                                    <small class="d-block">Đến: @item.EndDate.ToString("dd/MM/yyyy")</small>
+                                </td>
+                                <td class="text-center">
+                                    @if (isExpired)
+                                    {
+                                        <span class="badge bg-secondary">Hết hạn</span>
+                                    }
+                                    else if (isComingSoon)
+                                    {
+                                        <span class="badge bg-warning text-dark">Sắp diễn ra</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary text-white blink">Đang chạy</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group shadow-sm">
+                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-pencil"></i> Sửa
+                                        </a>
+                                        <form asp-action="Delete" asp-route-id="@item.Id" method="post"
+                                              onsubmit="return confirm('Bạn có chắc muốn xóa vĩnh viễn ưu đãi [@item.CouponCode] này?')">
+                                            <button type="submit" class="btn btn-danger btn-sm rounded-0 rounded-end">
+                                                <i class="bi bi-trash"></i> Xóa
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    Chưa có chương trình khuyến mãi nào được tạo.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Làm đẹp badge giảm giá */
+    .bg-success-soft {
+        background-color: #e8f5e9;
+    }
+
+    /* Hiệu ứng nhấp nháy cho chiến dịch đang chạy */
+    .blink {
+        animation: blinker 2s linear infinite;
+    }
+
+    @@keyframes blinker {
+        50% {
+            opacity: 0.6;
+        }
+    }
+
+    /* Đảm bảo nút trong group không bị lệch */
+    .btn-group form {
+        display: inline-block;
+    }
+</style>

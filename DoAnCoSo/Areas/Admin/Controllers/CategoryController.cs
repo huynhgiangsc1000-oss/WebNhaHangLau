@@ -60,7 +60,6 @@ namespace DoAnCoSo.Areas.Admin.Controllers
             ViewBag.ParentId = new SelectList(_context.Categories.Where(c => c.ParentId == null && c.CategoryId != id), "CategoryId", "CategoryName", category.ParentId);
             return View(category);
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Category category)
@@ -69,21 +68,52 @@ namespace DoAnCoSo.Areas.Admin.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(category);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Cập nhật thành công!";
-                return RedirectToAction(nameof(Index));
+                try
+                {
+                    _context.Update(category);
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "Cập nhật danh mục thành công!";
+                    return RedirectToAction("Index", "Category", new { area = "Admin" });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!_context.Categories.Any(e => e.CategoryId == category.CategoryId))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
             }
+
+            // NẾU BỊ LỖI VALIDATION: Phải nạp lại danh sách Dropdown để View không bị crash/lỗi trống Dropdown
+            ViewBag.ParentId = new SelectList(
+                _context.Categories.Where(c => c.ParentId == null && c.CategoryId != id),
+                "CategoryId",
+                "CategoryName",
+                category.ParentId
+            );
+
             return View(category);
         }
+
 
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
-            var category = await _context.Categories.Include(c => c.ParentCategory).FirstOrDefaultAsync(m => m.CategoryId == id);
+
+            // Nhớ .Include thêm cả Products để View nhận diện được số món ăn nhé
+            var category = await _context.Categories
+                .Include(c => c.ParentCategory)
+                .Include(c => c.Products)
+                .FirstOrDefaultAsync(m => m.CategoryId == id);
+
+            if (category == null) return NotFound();
+
             return View(category);
         }
-
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)

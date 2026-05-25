@@ -2,6 +2,12 @@
 
 @{
     ViewData["Title"] = "Quản lý đặt bàn";
+    string currentDateFilter = ViewBag.CurrentDateFilter ?? "Today";
+    string currentStatus = ViewBag.CurrentStatus ?? "";
+
+    // Kiểm tra xem ngày hiện tại có phải ngày tùy chọn không
+    bool isCustomDate = currentDateFilter != "Today" && currentDateFilter != "Tomorrow" && currentDateFilter != "All";
+    string customDateValue = isCustomDate ? currentDateFilter : "";
 }
 
 <div class="container-fluid pt-4 pb-5">
@@ -14,22 +20,118 @@
         </div>
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
             <div class="d-inline-flex gap-2">
-                <a asp-action="CheckIn" class="btn btn-danger shadow-sm px-3 py-2 fw-bold">
+                <a asp-action="CheckIn" class="btn btn-danger btn-lg shadow-sm px-4 fw-bold">
                     <i class="bi bi-qr-code-scan me-2"></i>QUÉT MÃ CHECK-IN
                 </a>
-                <div class="vr mx-2 d-none d-md-block"></div>
-                <div class="btn-group shadow-sm">
-                    <button class="btn btn-white border-secondary position-relative">
-                        <i class="bi bi-bell text-warning"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                            @Model.Count(x => x.Status == "Pending")
-                        </span>
-                    </button>
-                    <button class="btn btn-white border-secondary">
-                        <i class="bi bi-people text-info"></i> @Model.Count(x => x.Status == "CheckedIn")
-                    </button>
+                <a asp-action="Create" class="btn btn-primary btn-lg shadow-sm px-4 fw-bold">
+                    <i class="bi bi-plus-circle me-2"></i>THÊM ĐẶT BÀN
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="btn-group border p-1 bg-light rounded-pill" role="group">
+                    <a class="btn rounded-pill px-3 fw-bold @(currentDateFilter == "Today" ? "btn-primary shadow-sm" : "btn-light text-secondary")"
+                       asp-action="Index" asp-route-dateFilter="Today" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="@ViewBag.CurrentStatus">
+                        Hôm nay
+                    </a>
+                    <a class="btn rounded-pill px-3 fw-bold @(currentDateFilter == "Tomorrow" ? "btn-primary shadow-sm" : "btn-light text-secondary")"
+                       asp-action="Index" asp-route-dateFilter="Tomorrow" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="@ViewBag.CurrentStatus">
+                        Ngày mai
+                    </a>
+                    <a class="btn rounded-pill px-3 fw-bold @(currentDateFilter == "All" ? "btn-primary shadow-sm" : "btn-light text-secondary")"
+                       asp-action="Index" asp-route-dateFilter="All" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="@ViewBag.CurrentStatus">
+                        Tất cả lịch đặt
+                    </a>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small text-muted fw-bold text-nowrap mb-0"><i class="bi bi-calendar3 me-1"></i> Chọn ngày khác:</label>
+                    <input type="date" id="customDatePicker" value="@customDateValue" class="form-control form-control-sm border shadow-none rounded-3" style="width: 160px;" />
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-md-3">
+            <a class="card text-decoration-none border-0 shadow-sm transition-all @(string.IsNullOrEmpty(currentStatus) ? "bg-primary text-white" : "bg-white text-dark")"
+               asp-action="Index" asp-route-dateFilter="@currentDateFilter" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-uppercase fw-bold opacity-75 d-block" style="font-size: 0.75rem;">Tổng số đơn</small>
+                        <h4 class="mb-0 fw-bold">@ViewBag.CountAll</h4>
+                    </div>
+                    <i class="bi bi-grid-fill display-6 opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a class="card text-decoration-none border-0 shadow-sm transition-all @(currentStatus == "Pending" ? "bg-warning text-dark" : "bg-white text-dark")"
+               asp-action="Index" asp-route-dateFilter="@currentDateFilter" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="Pending">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-uppercase fw-bold opacity-75 d-block" style="font-size: 0.75rem;">Chờ duyệt</small>
+                        <h4 class="mb-0 fw-bold">@ViewBag.CountPending</h4>
+                    </div>
+                    <i class="bi bi-hourglass-split display-6 opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a class="card text-decoration-none border-0 shadow-sm transition-all @(currentStatus == "Confirmed" ? "bg-success text-white" : "bg-white text-dark")"
+               asp-action="Index" asp-route-dateFilter="@currentDateFilter" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="Confirmed">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-uppercase fw-bold opacity-75 d-block" style="font-size: 0.75rem;">Đã xác nhận</small>
+                        <h4 class="mb-0 fw-bold">@ViewBag.CountConfirmed</h4>
+                    </div>
+                    <i class="bi bi-calendar-check-fill display-6 opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a class="card text-decoration-none border-0 shadow-sm transition-all @(currentStatus == "CheckedIn" ? "bg-info text-white" : "bg-white text-dark")"
+               asp-action="Index" asp-route-dateFilter="@currentDateFilter" asp-route-searchString="@ViewBag.CurrentSearch" asp-route-statusFilter="CheckedIn">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-uppercase fw-bold opacity-75 d-block" style="font-size: 0.75rem;">Đã đến quán</small>
+                        <h4 class="mb-0 fw-bold">@ViewBag.CountCheckedIn</h4>
+                    </div>
+                    <i class="bi bi-people-fill display-6 opacity-50"></i>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 px-3">
+            <form method="get" asp-action="Index" id="searchForm" class="row g-2 align-items-center">
+                <input type="hidden" name="dateFilter" value="@currentDateFilter" />
+                <input type="hidden" name="statusFilter" value="@currentStatus" />
+
+                <div class="col-10 col-md-11">
+                    <div class="input-group input-group-merge">
+                        <span class="input-group-text bg-white border-end-0 text-muted p-2 px-3"><i class="bi bi-search"></i></span>
+                        <input type="text" name="searchString" id="searchStringInput" value="@ViewBag.CurrentSearch" class="form-control border-start-0 shadow-none py-2" placeholder="Nhập nhanh Tên khách hàng hoặc Số điện thoại để tìm kiếm..." />
+                    </div>
+                </div>
+                <div class="col-2 col-md-1 text-end">
+                    @if (!string.IsNullOrEmpty(ViewBag.CurrentSearch))
+                    {
+                        <a asp-action="Index" asp-route-dateFilter="@currentDateFilter" asp-route-statusFilter="@currentStatus" class="btn btn-outline-secondary w-100 py-2" title="Xóa tìm kiếm">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="submit" class="btn btn-dark w-100 py-2 fw-bold">Tìm</button>
+                    }
+                </div>
+            </form>
         </div>
     </div>
 
@@ -37,23 +139,21 @@
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-white py-3 border-bottom-0">
-            <div class="row align-items-center">
-                <div class="col">
-                    <h5 class="mb-0 fw-bold">Danh sách yêu cầu</h5>
-                </div>
-            </div>
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-list-ul me-2 text-primary"></i>Danh sách yêu cầu đặt bàn trước
+            </h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
+                    <thead class="table-light text-secondary border-bottom">
                         <tr>
-                            <th class="ps-4 py-3">Khách hàng</th>
-                            <th class="py-3">Lịch hẹn</th>
-                            <th class="text-center py-3">Số khách</th>
-                            <th class="py-3">Vị trí bàn</th>
-                            <th class="text-center py-3">Trạng thái</th>
-                            <th class="text-end pe-4 py-3">Thao tác</th>
+                            <th class="ps-4 py-3 fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Khách hàng</th>
+                            <th class="py-3 fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Lịch hẹn</th>
+                            <th class="text-center py-3 fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Số khách</th>
+                            <th class="py-3 fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Vị trí bàn</th>
+                            <th class="text-center py-3 fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Trạng thái</th>
+                            <th class="text-end pe-4 py-3 fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -63,6 +163,7 @@
                             {
                                 "Expired" => "opacity-50 table-light",
                                 "CheckedIn" => "table-info-light",
+                                "Cancelled" => "opacity-50",
                                 _ => ""
                             };
 
@@ -85,8 +186,8 @@
                                     </span>
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-secondary-subtle text-secondary px-3">
-                                        @item.GuestCount <i class="bi bi-person-fill ms-1"></i>
+                                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded">
+                                        <strong>@item.GuestCount</strong> <i class="bi bi-person-fill ms-1"></i>
                                     </span>
                                 </td>
                                 <td>
@@ -105,41 +206,41 @@
                                     @switch (item.Status)
                                     {
                                         case "Pending":
-                                            <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning px-3">Chờ duyệt</span>
+                                            <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning px-3 py-1">Chờ duyệt</span>
                                             break;
                                         case "Confirmed":
-                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success px-3">Đã xác nhận</span>
+                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success px-3 py-1">Đã xác nhận</span>
                                             break;
                                         case "CheckedIn":
-                                            <span class="badge rounded-pill bg-info-subtle text-info border border-info px-3">Đã đến</span>
+                                            <span class="badge rounded-pill bg-info-subtle text-info border border-info px-3 py-1">Đã đến</span>
                                             break;
                                         case "Expired":
-                                            <span class="badge rounded-pill bg-dark-subtle text-muted px-3">Quá hạn</span>
+                                            <span class="badge rounded-pill bg-dark-subtle text-muted px-3 py-1">Quá hạn</span>
                                             break;
                                         default:
-                                            <span class="badge rounded-pill bg-danger-subtle text-danger px-3">Đã hủy</span>
+                                            <span class="badge rounded-pill bg-danger-subtle text-danger px-3 py-1">Đã hủy</span>
                                             break;
                                     }
                                 </td>
                                 <td class="text-end pe-4">
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="btn-group btn-group-sm shadow-sm">
                                         @if (item.Status == "Pending")
                                         {
-                                            <button class="btn btn-primary" onclick="showAssignModal(@item.BookingId, @item.GuestCount)" title="Duyệt yêu cầu">
-                                                <i class="bi bi-check-lg"></i> Duyệt
+                                            <button class="btn btn-primary fw-bold px-3" onclick="showAssignModal(@item.BookingId, @item.GuestCount)" title="Duyệt yêu cầu">
+                                                <i class="bi bi-check-lg me-1"></i> Duyệt
                                             </button>
                                         }
 
                                         @if (item.Status == "Confirmed")
                                         {
-                                            <button class="btn btn-info text-white" onclick="manualCheckIn('@item.CheckInCode')" title="Xác nhận khách đến">
-                                                <i class="bi bi-person-check"></i> Check-in
+                                            <button class="btn btn-info text-white fw-bold px-3" onclick="manualCheckIn('@item.CheckInCode')" title="Xác nhận khách đến">
+                                                <i class="bi bi-person-check me-1"></i> Check-in
                                             </button>
                                         }
 
                                         @if (item.Status == "Pending" || item.Status == "Confirmed")
                                         {
-                                            <button class="btn btn-outline-danger" onclick="ajaxCancel(@item.BookingId)" title="Hủy bỏ">
+                                            <button class="btn btn-outline-danger px-2" onclick="ajaxCancel(@item.BookingId)" title="Hủy bỏ">
                                                 <i class="bi bi-trash3"></i>
                                             </button>
                                         }
@@ -153,8 +254,8 @@
             @if (!Model.Any())
             {
                 <div class="text-center py-5">
-                    <i class="bi bi-calendar-x display-1 text-light"></i>
-                    <p class="text-muted mt-3">Không có yêu cầu đặt bàn nào trong hệ thống.</p>
+                    <i class="bi bi-calendar-x display-4 text-muted"></i>
+                    <p class="text-muted mt-3 mb-0 fw-medium">Không tìm thấy yêu cầu đặt bàn nào phù hợp với bộ lọc hiện tại.</p>
                 </div>
             }
         </div>
@@ -171,157 +272,140 @@
             <div class="modal-body">
                 <input type="hidden" id="hdnBookingId" />
                 <div class="alert alert-info py-2 small">
-                    <i class="bi bi-info-circle me-2"></i>Khách đặt cho: <strong id="spanGuestCount">0</strong> người.
+                    Yêu cầu đặt bàn cho <strong id="lblGuestCount">0</strong> khách. Vui lòng chọn vị trí bàn thích hợp.
                 </div>
-
                 <div class="mb-3">
-                    <label class="form-label fw-bold small text-uppercase">Chọn bàn còn trống</label>
-                    <select id="selTable" class="form-select shadow-none">
-                        <option value="">-- Chọn bàn phù hợp --</option>
+                    <label class="form-label fw-bold small text-secondary">Chọn bàn trống:</label>
+                    <select id="selectTable" class="form-select">
+                        <option value="">-- Chọn bàn trống --</option>
                         @if (ViewBag.AvailableTables != null)
                         {
-                            @foreach (var t in (IEnumerable<DoAnCoSo.Models.Table>)ViewBag.AvailableTables)
+                            foreach (var table in ViewBag.AvailableTables as List<DoAnCoSo.Models.Table>)
                             {
-                                <option value="@t.TableId">@t.TableName (Sức chứa: @t.Capacity)</option>
+                                <option value="@table.TableId">@table.TableName (Sức chứa: @table.Capacity người)</option>
                             }
                         }
                     </select>
                 </div>
-
-                <div id="divCapacityWarning" class="alert alert-warning d-none py-2 small">
-                    <i class="bi bi-exclamation-triangle me-2"></i><strong>Cảnh báo:</strong> Sức chứa của bàn nhỏ hơn số khách đặt!
-                </div>
             </div>
             <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Đóng</button>
-                <button type="button" class="btn btn-primary px-4" onclick="confirmBooking()">Xác nhận duyệt</button>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 fw-bold" onclick="submitAssignTable()">Xác nhận duyệt</button>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        .table-info-light {
-            background-color: rgba(13, 202, 240, 0.05);
-        }
-
-        .transition-all {
-            transition: all 0.2s ease;
-        }
-
-        .table-hover tbody tr:hover {
-            background-color: rgba(0,0,0,.02);
-            transform: scale(1.002);
-        }
-    </style>
-
     <script>
-        // Các hàm JavaScript giữ nguyên logic cũ nhưng bổ sung thông báo mượt hơn bằng SweetAlert2
-        function manualCheckIn(code) {
-            if (!code) {
-                Swal.fire('Lỗi', 'Đơn hàng này không có mã Check-in!', 'error');
-                return;
-            }
-
-            Swal.fire({
-                title: 'Xác nhận khách đến?',
-                text: "Xác nhận khách đã có mặt tại nhà hàng và nhận bàn.",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#0dcaf0',
-                confirmButtonText: 'Xác nhận đến',
-                cancelButtonText: 'Hủy'
-            }).then((result) => {
-                if (result.isConfirmed) sendCode(code);
-            });
-        }
-
-        function sendCode(code) {
-            $.ajax({
-                url: '@Url.Action("ProcessCheckIn", "BookingManager")',
-                type: 'POST',
-                data: {
-                    qrCode: code,
-                    "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
-                },
-                success: function(res) {
-                    if(res.success) {
-                        Swal.fire({ icon: 'success', title: 'Thành công', text: res.message, timer: 1500, showConfirmButton: false })
-                        .then(() => location.reload());
-                    } else {
-                        Swal.fire('Lỗi', res.message, 'error');
-                    }
+        $(document).ready(function () {
+            // 1. XỬ LÝ CHỌN NGÀY KHÁC: Tự động reload tải lại danh sách theo ngày tùy chọn
+            $('#customDatePicker').on('change', function () {
+                var selectedDate = $(this).val();
+                if (selectedDate) {
+                    var url = '@Url.Action("Index", "BookingManager")' +
+                            '?dateFilter=' + encodeURIComponent(selectedDate) +
+                            '&statusFilter=@ViewBag.CurrentStatus' +
+                            '&searchString=@ViewBag.CurrentSearch';
+                    window.location.href = url;
                 }
             });
-        }
+        });
 
-        var currentGuestCount = 0;
-        function showAssignModal(id, guests) {
-            currentGuestCount = guests;
-            $('#hdnBookingId').val(id);
-            $('#spanGuestCount').text(guests);
-            $('#divCapacityWarning').addClass('d-none');
+        // 2. HIỂN THỊ MODAL GÁN BÀN KHI BẤM NÚT "DUYỆT"
+        function showAssignModal(bookingId, guestCount) {
+            $('#hdnBookingId').val(bookingId);
+            $('#lblGuestCount').text(guestCount);
+            $('#selectTable').val(''); // Reset lại lựa chọn bàn cũ trước đó
+
             var myModal = new bootstrap.Modal(document.getElementById('modalAssign'));
             myModal.show();
         }
 
-        $('#selTable').on('change', function() {
-            const selectedOption = $(this).find('option:selected').text();
-            if (selectedOption.includes("Sức chứa:")) {
-                const capacity = parseInt(selectedOption.match(/\d+/)[0]);
-                if (capacity < currentGuestCount) {
-                    $('#divCapacityWarning').removeClass('d-none');
-                } else {
-                    $('#divCapacityWarning').addClass('d-none');
-                }
-            }
-        });
+        // 3. GỬI AJAX XÁC NHẬN GÁN BÀN LÊN SERVER
+        function submitAssignTable() {
+            var bookingId = $('#hdnBookingId').val();
+            var tableId = $('#selectTable').val();
 
-        function confirmBooking() {
-            const bId = $('#hdnBookingId').val();
-            const tId = $('#selTable').val();
-            if (!tId) {
-                Swal.fire('Lưu ý', 'Vui lòng chọn một bàn để gán!', 'warning');
+            if (!tableId) {
+                alert("Vui lòng lựa chọn một bàn trống trước khi duyệt!");
                 return;
             }
 
+            var token = $('input[name="__RequestVerificationToken"]').val();
+
             $.ajax({
-                url: '/Admin/BookingManager/ConfirmBooking',
+                url: '@Url.Action("ConfirmBooking", "BookingManager")',
                 type: 'POST',
-                data: { bookingId: bId, tableId: tId },
-                headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
-                success: function(res) {
-                    if (res.success) location.reload();
-                    else Swal.fire('Lỗi', res.message, 'error');
+                data: {
+                    __RequestVerificationToken: token,
+                    bookingId: bookingId,
+                    tableId: tableId
+                },
+                success: function (response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert(response.message || "Có lỗi phát sinh trong quá trình gán bàn.");
+                    }
+                },
+                error: function () {
+                    alert("Không thể kết nối đến hệ thống máy chủ.");
                 }
             });
         }
 
-        function ajaxCancel(id) {
-            Swal.fire({
-                title: 'Hủy đặt bàn?',
-                text: "Hành động này không thể hoàn tác!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                confirmButtonText: 'Đồng ý hủy',
-                cancelButtonText: 'Không'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: '/Admin/BookingManager/CancelBooking',
-                        type: 'POST',
-                        data: { id: id },
-                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
-                        success: function(res) {
-                            if (res.success) location.reload();
-                            else Swal.fire('Lỗi', 'Không thể hủy đơn.', 'error');
+        // 4. GỬI AJAX HỦY ĐƠN ĐẶT BÀN TRỰC TIẾP TRÊN TRANG
+        function ajaxCancel(bookingId) {
+            if (confirm("Bạn có chắc chắn muốn hủy bỏ yêu cầu đặt bàn này không?")) {
+                var token = $('input[name="__RequestVerificationToken"]').val();
+
+                $.ajax({
+                    url: '@Url.Action("CancelBooking", "BookingManager")',
+                    type: 'POST',
+                    data: {
+                        __RequestVerificationToken: token,
+                        id: bookingId
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert(response.message || "Có lỗi phát sinh trong quá trình hủy bỏ đơn.");
                         }
-                    });
-                }
-            });
+                    },
+                    error: function () {
+                        alert("Không thể kết nối đến hệ thống máy chủ.");
+                    }
+                });
+            }
+        }
+
+        // 5. HÀM CHECK-IN THỦ CÔNG QUA MÃ CODE CHỜ SẴN
+        function manualCheckIn(checkInCode) {
+            if (confirm("Xác nhận Check-in thủ công cho khách hàng với mã: " + checkInCode + "?")) {
+                var token = $('input[name="__RequestVerificationToken"]').val();
+
+                $.ajax({
+                    url: '@Url.Action("ProcessCheckIn", "BookingManager")',
+                    type: 'POST',
+                    data: {
+                        __RequestVerificationToken: token,
+                        qrCode: checkInCode
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            alert(response.message);
+                            location.reload();
+                        } else {
+                            alert(response.message || "Xử lý check-in thất bại.");
+                        }
+                    },
+                    error: function () {
+                        alert("Lỗi kết nối máy chủ khi thực hiện check-in.");
+                    }
+                });
+            }
         }
     </script>
 }

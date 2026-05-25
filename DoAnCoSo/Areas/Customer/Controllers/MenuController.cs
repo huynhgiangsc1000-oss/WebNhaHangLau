@@ -18,10 +18,9 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             _userManager = userManager;
         }
 
-        public async Task<IActionResult> Index(int? categoryId)
+        public async Task<IActionResult> Index(int? categoryId, string searchTerm, string priceRange, string sortOrder)
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null) return RedirectToAction("Login", "Account");
 
             // 1. Lấy TableId từ Session hoặc Cookie
             var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
@@ -29,53 +28,48 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             if (!string.IsNullOrEmpty(tableIdStr))
             {
                 int tableId = int.Parse(tableIdStr);
-
-                // Kiểm tra xem có Order nào của NGƯỜI KHÁC đang ngồi đây không
-                var otherActiveOrder = await _context.Orders
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.TableId == tableId
-                                           && o.UserId != user.Id
-                                           && o.Status != "Completed"
-                                           && o.Status != "Cancelled");
-
-                if (otherActiveOrder != null)
-                {
-                    // Nếu thực sự là khách khác đang dùng đơn này
-                    HttpContext.Session.Remove("TableId");
-                    Response.Cookies.Delete("SavedTableId");
-                    TempData["Error"] = "Bàn này đang được sử dụng bởi khách khác!";
-                    return RedirectToAction("Index", "Table");
-                }
-
-                // --- PHẦN QUAN TRỌNG: Kiểm tra quyền sở hữu bàn ---
-                // Cho phép vào menu nếu: 
-                // - Có đơn hàng của mình ĐANG CHẠY 
-                // - HOẶC có lịch đặt bàn đã CheckedIn 
-                // - HOẶC bàn đang Occupied và mình vừa mới quét mã xong (kiểm tra qua Session)
-
-                var hasBooking = await _context.Bookings
-                    .AnyAsync(b => b.TableId == tableId && b.UserId == user.Id && b.Status == "CheckedIn");
-
-                var hasMyOrder = await _context.Orders
-                    .AnyAsync(o => o.TableId == tableId && o.UserId == user.Id && o.Status != "Completed" && o.Status != "Cancelled");
-
                 var table = await _context.Tables.AsNoTracking().FirstOrDefaultAsync(t => t.TableId == tableId);
 
-                // SỬA LẠI ĐIỀU KIỆN CHẶN: 
-                // Chỉ đuổi ra nếu bàn Occupied mà KHÔNG PHẢI do mình (không đơn, không booking, không phải người vừa quét mã)
-                // Lưu ý: Nếu tableIdStr lấy từ Session tức là họ vừa quét mã thành công ở TableController
-                if (table?.Status == "Occupied" && !hasBooking && !hasMyOrder && string.IsNullOrEmpty(HttpContext.Session.GetString("TableId")))
+                // 2. KIỂM TRA XUNG ĐỘT (Chỉ chạy khi CÓ đăng nhập)
+                if (user != null)
                 {
-                    HttpContext.Session.Remove("TableId");
+                    var otherActiveOrder = await _context.Orders
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(o => o.TableId == tableId
+                                               && o.UserId != user.Id
+                                               && o.Status != "Completed"
+                                               && o.Status != "Cancelled");
+
+                    if (otherActiveOrder != null)
+                    {
+                        ClearTableSession();
+                        TempData["Error"] = "Bàn này đang được sử dụng bởi khách khác!";
+                        return RedirectToAction("Index", "Table");
+                    }
+                }
+
+                // 3. XÁC MINH QUYỀN TRUY CẬP
+                bool hasMyOrder = user != null && await _context.Orders
+                    .AnyAsync(o => o.TableId == tableId && o.UserId == user.Id && o.Status != "Completed");
+
+                bool hasCheckedInBooking = await _context.Bookings
+                    .AnyAsync(b => b.TableId == tableId && b.Status == "CheckedIn");
+
+                bool isFreshAccess = !string.IsNullOrEmpty(HttpContext.Session.GetString("TableId"));
+
+                // 4. LOGIC CHẶN
+                if (table?.Status == "Occupied" && !hasMyOrder && !hasCheckedInBooking && !isFreshAccess)
+                {
+                    ClearTableSession();
+                    TempData["Error"] = "Bàn hiện đang có khách. Vui lòng liên hệ nhân viên!";
                     return RedirectToAction("Index", "Table");
                 }
 
                 ViewBag.TableId = tableIdStr;
                 ViewBag.TableName = table?.TableName;
             }
-            else
+            else if (user != null) // 5. TỰ ĐỘNG KHÔI PHỤC (Chỉ cho thành viên)
             {
-                // Tự động khôi phục bàn từ Booking CheckedIn (giữ nguyên logic của bạn)
                 var myCheckedInBooking = await _context.Bookings
                     .Where(b => b.UserId == user.Id && b.Status == "CheckedIn")
                     .OrderByDescending(b => b.BookingDate)
@@ -85,40 +79,98 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 {
                     tableIdStr = myCheckedInBooking.TableId.Value.ToString();
                     HttpContext.Session.SetString("TableId", tableIdStr);
+                    var table = await _context.Tables.AsNoTracking().FirstOrDefaultAsync(t => t.TableId == myCheckedInBooking.TableId);
                     ViewBag.TableId = tableIdStr;
-                    var table = await _context.Tables.FindAsync(myCheckedInBooking.TableId);
                     ViewBag.TableName = table?.TableName;
                 }
             }
 
+            // ĐẢM BẢO LUÔN CÓ GIÁ TRỊ TRUE/FALSE RÕ RÀNG
             ViewBag.HasTable = !string.IsNullOrEmpty(tableIdStr);
 
-            // --- PHẦN LOAD SẢN PHẨM GIỮ NGUYÊN NHƯ CŨ ---
+            // --- LOGIC HIỂN THỊ DANH MỤC ---
             var categories = await _context.Categories
                 .Include(c => c.SubCategories)
                 .Where(c => c.ParentId == null)
                 .AsNoTracking()
                 .ToListAsync();
+            ViewBag.Categories = categories;
 
-            IQueryable<Product> productQuery = _context.Products
+            // --- LOGIC HIỂN THỊ VÀ LỌC SẢN PHẨM ---
+            // Tải toàn bộ sản phẩm đang kinh doanh lên bộ nhớ để lọc linh hoạt
+            var queryProducts = await _context.Products
                 .Include(p => p.Category)
                 .Where(p => p.IsAvailable)
-                .AsNoTracking();
+                .AsNoTracking()
+                .ToListAsync();
 
+            // A. Lọc theo Danh mục (Đệ quy nếu chọn danh mục cha)
             if (categoryId.HasValue)
             {
                 var allCats = await _context.Categories.AsNoTracking().ToListAsync();
                 var idsList = new List<int>();
+
                 GetCategoryIdsRecursive(categoryId.Value, allCats, idsList);
-                productQuery = productQuery.Where(p => idsList.Contains(p.CategoryId));
+                var categoryIdsParam = idsList.Distinct().ToArray();
+
+                queryProducts = queryProducts.Where(p => categoryIdsParam.Contains(p.CategoryId)).ToList();
                 ViewBag.CurrentCategory = categoryId;
             }
+            else
+            {
+                ViewBag.CurrentCategory = null;
+            }
 
-            var products = await productQuery.ToListAsync();
-            ViewBag.Categories = categories;
-            return View(products);
+            // B. Lọc theo Từ khóa tìm kiếm (Tên món ăn)
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                string term = searchTerm.Trim().ToLower();
+                queryProducts = queryProducts.Where(p => p.ProductName.ToLower().Contains(term)).ToList();
+            }
+
+            // C. Lọc theo Khoảng giá
+            if (!string.IsNullOrEmpty(priceRange))
+            {
+                switch (priceRange)
+                {
+                    case "under100":
+                        queryProducts = queryProducts.Where(p => p.Price < 100000).ToList();
+                        break;
+                    case "100to200":
+                        queryProducts = queryProducts.Where(p => p.Price >= 100000 && p.Price <= 200000).ToList();
+                        break;
+                    case "over200":
+                        queryProducts = queryProducts.Where(p => p.Price > 200000).ToList();
+                        break;
+                }
+            }
+
+            // D. Sắp xếp kết quả (Sort)
+            if (!string.IsNullOrEmpty(sortOrder))
+            {
+                switch (sortOrder)
+                {
+                    case "price_asc":
+                        queryProducts = queryProducts.OrderBy(p => p.Price).ToList();
+                        break;
+                    case "price_desc":
+                        queryProducts = queryProducts.OrderByDescending(p => p.Price).ToList();
+                        break;
+                }
+            }
+
+            // Gửi ngược trạng thái lọc về giao diện để giữ trạng thái cho các ô Input/Select
+            ViewBag.SearchTerm = searchTerm;
+            ViewBag.PriceRange = priceRange;
+            ViewBag.SortOrder = sortOrder;
+
+            return View(queryProducts);
         }
-
+        private void ClearTableSession()
+        {
+            HttpContext.Session.Remove("TableId");
+            Response.Cookies.Delete("SavedTableId");
+        }
         private void GetCategoryIdsRecursive(int parentId, List<Category> allCats, List<int> result)
         {
             if (!result.Contains(parentId)) result.Add(parentId);

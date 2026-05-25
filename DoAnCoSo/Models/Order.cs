@@ -34,6 +34,8 @@ namespace DoAnCoSo.Models
 
         [ForeignKey("BookingId")]
         public virtual Booking? Booking { get; set; }
+        [NotMapped]
+        public decimal OriginalAmount => TotalAmount + DiscountAmount;
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
     }
 }

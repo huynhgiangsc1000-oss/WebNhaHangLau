@@ -1,15 +1,71 @@
-﻿@model IEnumerable<DoAnCoSo.Models.Order>
+﻿@using DoAnCoSo.Models
+@* Sửa lại kiểu dữ liệu nhận từ Controller: Nhận danh sách các nhóm đã Group theo Ngày *@
+@model IEnumerable<IGrouping<DateTime, Order>>
 @Html.AntiForgeryToken()
 
 @{
-    ViewData["Title"] = "Quản lý đơn hàng";
+    ViewData["Title"] = "Quản lý đơn hàng - Manwah";
+    string currentStatus = ViewBag.Status ?? "";
+    string startDateStr = ViewBag.StartDate;
+    string endDateStr = ViewBag.EndDate;
 }
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
+
 <style>
-    /* Hiệu ứng nhấp nháy màu xanh cho đơn chờ thanh toán */
+    .filter-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .nav-pills .nav-link {
+        border-radius: 20px;
+        color: #495057;
+        font-weight: 500;
+        padding: 8px 20px;
+        transition: all 0.2s ease;
+    }
+
+        .nav-pills .nav-link.active {
+            background-color: #a91e24 !important;
+            color: #fff !important;
+        }
+
+    .date-group-header {
+        background-color: #f8f9fa;
+        border: 1px solid #e3e6f0;
+        border-radius: 8px !important;
+        color: #333;
+        font-weight: bold;
+        padding: 12px 20px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+        .date-group-header:not(.collapsed) {
+            background-color: #fff5f5;
+            color: #a91e24;
+            border-bottom: 2px solid #a91e24;
+        }
+
+    .session-title {
+        background-color: #fffbfb;
+        color: #b52a30;
+        font-size: 0.95rem;
+        font-weight: bold;
+        padding: 8px 15px;
+        border-left: 4px solid #a91e24;
+    }
+
     .blink-awaiting {
-        animation: blink-blue 1.5s infinite;
-        background-color: #e7f3ff !important;
+        animation: blink-blue 1.8s infinite;
         font-weight: bold;
     }
 
@@ -17,221 +73,534 @@
         0%
 
     {
-        background-color: #e7f3ff;
+        background-color: #fff;
     }
 
     50% {
-        background-color: #b3d7ff;
-    }
-
-    100% {
         background-color: #e7f3ff;
     }
 
+    100% {
+        background-color: #fff;
+    }
+
+    }
+
+    .animate-pulse-slow {
+        animation: pulse-slow 2s infinite;
+    }
+
+    @@keyframes pulse-slow {
+        0%
+
+    {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+
+    }
+
+    .original-price {
+        text-decoration: line-through;
+        color: #6c757d;
+        font-size: 0.85rem;
+        display: block;
+    }
+
+    .discounted-price {
+        font-weight: bold;
+        color: #dc3545;
+        display: block;
     }
 </style>
 
 <div class="container-fluid py-4">
-    <div class="card shadow border-0">
-        <div class="card-header bg-white py-3">
-            <div class="row align-items-center">
-                <div class="col">
-                    <h5 class="m-0 font-weight-bold text-danger">
-                        <i class="fas fa-clipboard-list me-2"></i>DANH SÁCH ĐƠN HÀNG
-                    </h5>
-                </div>
-                <div class="col-md-6">
-                    <form asp-action="Index" method="get" class="d-flex justify-content-end align-items-center">
-                        <input type="text" name="searchQuery" value="@ViewBag.CurrentSearch"
-                               class="form-control form-control-sm me-2 w-50" placeholder="Mã đơn, bàn...">
-                        <button type="submit" class="btn btn-danger btn-sm px-3">Lọc</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-dark text-center">
-                        <tr>
-                            <th>STT</th>
-                            <th>Mã Đơn</th>
-                            <th>Thời gian</th>
-                            <th>Bàn</th>
-                            <th>Tổng tiền</th>
-                            <th>Trạng thái</th>
-                            <th>Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-center">
-                        @{
-                            int i = 1;
-                        }
-                        @foreach (var item in Model)
-                        {
-                            decimal rankPct = item.User?.Rank?.DiscountPercent ?? 0;
-                            decimal promoPct = item.Promotion?.DiscountValue ?? 0;
-                            decimal finalPct = Math.Max(rankPct, promoPct);
-                            decimal finalAmount = item.TotalAmount * (1 - (finalPct / 100m));
-
-                            // Kiểm tra trạng thái AwaitingPayment để nhấp nháy
-                            string rowClass = item.Status == "AwaitingPayment" ? "blink-awaiting" : "";
-
-                            <tr class="@rowClass">
-                                <td>@(i++)</td>
-                                <td class="fw-bold text-primary">#@item.OrderId</td>
-                                <td>@item.OrderDate.ToString("HH:mm dd/MM")</td>
-                                <td>
-                                    <span class="badge bg-dark">@item.Table?.TableName</span>
-                                </td>
-                                <td class="text-danger fw-bold">
-                                    @finalAmount.ToString("N0")đ
-                                </td>
-                                <td>
-                                    @switch (item.Status)
-                                    {
-                                        case "Pending":
-                                            <span class="badge rounded-pill bg-warning text-dark">Chờ xác nhận</span>
-                                            break;
-                                        case "Processing":
-                                            <span class="badge rounded-pill bg-info text-white">Đang phục vụ</span>
-                                            break;
-                                        case "AwaitingPayment":
-                                            <span class="badge rounded-pill bg-primary text-white">Chờ thu tiền</span>
-                                            break;
-                                        case "Completed":
-                                            <span class="badge rounded-pill bg-success text-white">Đã hoàn tất</span>
-                                            break;
-                                        case "Cancelled":
-                                            <span class="badge rounded-pill bg-danger text-white">Đã hủy</span>
-                                            break;
-                                        default:
-                                            <span class="badge rounded-pill bg-secondary text-white">@item.Status</span>
-                                            break;
-                                    }
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <button class="btn btn-outline-dark btn-sm rounded-pill px-3 me-2"
-                                                onclick="showOrderDetail(@item.OrderId)">
-                                            <i class="fas fa-eye me-1"></i> Chi tiết
-                                        </button>
-
-                                        @if (item.Status == "AwaitingPayment")
-                                        {
-                                            <button class="btn btn-outline-primary btn-sm rounded-pill px-3"
-                                                    onclick="printInvoice(@item.OrderId)">
-                                                <i class="fas fa-print me-1"></i> In Bill
-                                            </button>
-                                        }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="m-0 font-weight-bold text-dark fw-bold">
+            <i class="fas fa-utensils me-2 text-danger"></i>ĐIỀU HÀNH ĐƠN PHỤC VỤ THEO LỊCH TRÌNH
+        </h4>
     </div>
+
+    <div class="card filter-card shadow-sm border-0 mb-4">
+        <form asp-action="Index" method="get" id="searchForm">
+            <input type="hidden" name="status" value="@currentStatus" />
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold text-muted">Tìm kiếm nhanh</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="searchQuery" value="@ViewBag.SearchQuery" class="form-control bg-light border-start-0" placeholder="Nhập mã đơn, tên bàn...">
+                    </div>
+                </div>
+
+                @* Đổi type="date" thành type="text" để Flatpickr xử lý giao diện hiển thị dd/mm/yyyy *@
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Từ ngày</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-calendar-alt text-muted"></i></span>
+                        <input type="text" id="startDate" name="startDate" value="@startDateStr" class="form-control bg-white border-start-0" placeholder="dd/mm/yyyy" readonly>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Đến ngày</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-calendar-alt text-muted"></i></span>
+                        <input type="text" id="endDate" name="endDate" value="@endDateStr" class="form-control bg-white border-start-0" placeholder="dd/mm/yyyy" readonly>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-danger w-100 rounded-3"><i class="fas fa-filter me-1"></i> Lọc</button>
+                    <a href="/Admin/Order" class="btn btn-outline-secondary rounded-3" title="Reset"><i class="fas fa-undo"></i></a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="mb-4">
+        <ul class="nav nav-pills gap-2 bg-white p-2 rounded-3 shadow-sm d-inline-flex">
+            <li class="nav-item">
+                <a class="nav-link @(currentStatus == "" ? "active" : "")" href="#" onclick="switchTab('')">Tất cả đơn treo</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(currentStatus == "Pending" ? "active" : "") d-flex align-items-center gap-2" href="#" onclick="switchTab('Pending')">
+                    Chờ duyệt
+                    <span class="badge bg-warning text-dark px-2 rounded-pill status-count-Pending" style="display:none;">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(currentStatus == "Processing" ? "active" : "") d-flex align-items-center gap-2" href="#" onclick="switchTab('Processing')">
+                    Đang phục vụ
+                    <span class="badge bg-info text-white px-2 rounded-pill status-count-Processing" style="display:none;">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(currentStatus == "AwaitingPayment" ? "active" : "") d-flex align-items-center gap-2" href="#" onclick="switchTab('AwaitingPayment')">
+                    Chờ tính tiền
+                    <span class="badge bg-danger text-white px-2 rounded-pill status-count-AwaitingPayment animate-pulse-slow" style="display:none;">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(currentStatus == "Completed" ? "active" : "")" href="#" onclick="switchTab('Completed')">Đã hoàn tất</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(currentStatus == "Cancelled" ? "active" : "")" href="#" onclick="switchTab('Cancelled')">Đã hủy</a>
+            </li>
+        </ul>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card shadow-sm border-0 text-center p-5 text-muted" style="border-radius: 12px;">
+            <i class="fas fa-box-open d-block mb-2 fs-2 text-secondary"></i>
+            Không có đơn hàng nào khớp với điều kiện lọc.
+        </div>
+    }
+    else
+    {
+        int currentHour = DateTime.Now.Hour;
+
+        <div class="accordion" id="orderAccordion">
+            @{
+                int dateIndex = 0;
+            }
+            @foreach (var dateGroup in Model)
+            {
+                dateIndex++;
+                string dateCollapseId = "date_" + dateIndex;
+                bool isToday = dateGroup.Key.Date == DateTime.Today;
+
+                <div class="accordion-item border-0 mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; background: none;">
+                    <h2 class="accordion-header" id="heading_@dateCollapseId">
+                        <button class="accordion-button date-group-header" type="button" data-bs-toggle="collapse" data-bs-target="#@dateCollapseId" aria-expanded="true">
+                            <div class="d-flex justify-content-between w-100 align-items-center pe-3">
+                                <div>
+                                    <i class="fas fa-calendar-day text-danger me-2"></i>
+                                    <b>NGÀY: @dateGroup.Key.ToString("dd/MM/yyyy")</b> @(isToday ? " (HÔM NAY)" : "")
+                                </div>
+                                <span class="badge bg-danger rounded-pill px-3">@dateGroup.Count() Đơn</span>
+                            </div>
+                        </button>
+                    </h2>
+
+                    <div id="@dateCollapseId" class="accordion-collapse collapse show">
+                        <div class="accordion-body p-3 bg-light d-flex flex-column gap-3">
+
+                            @{
+                                var sessionsInDate = dateGroup
+                                .Select(o => new
+                                {
+                                    Order = o,
+                                    SessionName = o.OrderDate.Hour >= 6 && o.OrderDate.Hour < 12 ? "Buổi Sáng (06:00 - 11:30)" :
+                                o.OrderDate.Hour >= 12 && o.OrderDate.Hour < 17 ? "Buổi Trưa (11:30 - 17:00)" :
+                                "Buổi Tối (17:00 - 24:00)",
+                                    SessionKey = o.OrderDate.Hour >= 6 && o.OrderDate.Hour < 12 ? "Morning" :
+                                o.OrderDate.Hour >= 12 && o.OrderDate.Hour < 17 ? "Afternoon" : "Evening",
+                                    Sort = o.OrderDate.Hour >= 6 && o.OrderDate.Hour < 12 ? 1 :
+                                o.OrderDate.Hour >= 12 && o.OrderDate.Hour < 17 ? 2 : 3
+                                })
+                                .GroupBy(s => new { s.SessionName, s.SessionKey, s.Sort })
+                                .OrderBy(s => s.Key.Sort);
+                            }
+
+                            <div class="accordion" id="childAccordion_@dateCollapseId">
+                                @foreach (var session in sessionsInDate)
+                                {
+                                    string sessionCollapseId = $"session_{dateIndex}_{session.Key.SessionKey}";
+
+                                    bool isOpenSession = false;
+                                    if (isToday)
+                                    {
+                                        if (session.Key.SessionKey == "Morning" && currentHour >= 6 && currentHour < 12) isOpenSession = true;
+                                        else if (session.Key.SessionKey == "Afternoon" && currentHour >= 12 && currentHour < 17) isOpenSession = true;
+                                        else if (session.Key.SessionKey == "Evening" && (currentHour >= 17 || currentHour < 6)) isOpenSession = true;
+                                    }
+                                    else if (dateIndex == 1)
+                                    {
+                                        isOpenSession = session.Key.Sort == 1;
+                                    }
+
+                                    <div class="accordion-item border shadow-sm mb-2" style="border-radius: 8px; overflow: hidden;">
+                                        <h3 class="accordion-header" id="head_@sessionCollapseId">
+                                            <button class="accordion-button @(isOpenSession ? "" : "collapsed") py-2 bg-white fw-bold"
+                                                    type="button" style="font-size:0.9rem; color: #a91e24;"
+                                                    data-bs-toggle="collapse" data-bs-target="#@sessionCollapseId"
+                                                    aria-expanded="@(isOpenSession ? "true" : "false")">
+                                                <div class="d-flex justify-content-between w-100 align-items-center pe-2">
+                                                    <span><i class="far fa-clock me-2"></i>@session.Key.SessionName</span>
+                                                    <span class="badge bg-light text-danger border rounded-pill">@session.Count() đơn</span>
+                                                </div>
+                                            </button>
+                                        </h3>
+
+                                        <div id="@sessionCollapseId" class="accordion-collapse collapse @(isOpenSession ? "show" : "")"
+                                             data-bs-parent="#childAccordion_@dateCollapseId">
+                                            <div class="accordion-body p-0 bg-white">
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                                                        <thead class="table-light text-center">
+                                                            <tr>
+                                                                <th width="5%">STT</th>
+                                                                <th width="12%">Mã Đơn</th>
+                                                                <th width="15%">Giờ gọi</th>
+                                                                <th width="15%">Bàn số</th>
+                                                                <th width="18%">Tổng tiền</th>
+                                                                <th width="15%">Trạng thái</th>
+                                                                <th width="20%">Hành động</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="text-center">
+                                                            @{
+                                                                int stt = 1;
+                                                            }
+                                                            @foreach (var item in session)
+                                                            {
+                                                                decimal rankPct = item.Order.User?.Rank?.DiscountPercent ?? 0;
+                                                                decimal promoPct = item.Order.Promotion?.DiscountValue ?? 0;
+                                                                decimal finalPct = Math.Max(rankPct, promoPct);
+                                                                decimal finalAmount = item.Order.TotalAmount * (1 - (finalPct / 100m));
+                                                                string rowClass = item.Order.Status == "AwaitingPayment" ? "blink-awaiting" : "";
+
+                                                                <tr class="@rowClass">
+                                                                    <td>@(stt++)</td>
+                                                                    <td class="fw-bold text-dark">#@item.Order.OrderId</td>
+                                                                    <td><i class="far fa-clock text-muted me-1 small"></i>@item.Order.OrderDate.ToString("HH:mm")</td>
+                                                                    <td><span class="badge bg-dark px-3 py-2 rounded-3">@item.Order.Table?.TableName</span></td>
+                                                                    <td>
+                                                                        @if (finalPct > 0)
+                                                                        {
+                                                                            <span class="original-price">@item.Order.TotalAmount.ToString("N0")đ</span>
+                                                                            <span class="discounted-price">@finalAmount.ToString("N0")đ <small class="text-success">(-@finalPct%)</small></span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="discounted-price text-dark">@item.Order.TotalAmount.ToString("N0")đ</span>
+                                                                        }
+                                                                    </td>
+                                                                    <td>
+                                                                        @switch (item.Order.Status)
+                                                                        {
+                                                                            case "Pending":
+                                                                                <span class="badge bg-warning text-dark px-2 py-1 order-status-badge">Chờ duyệt</span>
+                                                                                break;
+                                                                            case "Processing":
+                                                                                <span class="badge bg-info text-white px-2 py-1 order-status-badge">Đang phục vụ</span>
+                                                                                break;
+                                                                            case "AwaitingPayment":
+                                                                                <span class="badge bg-primary text-white px-2 py-1 order-status-badge">Tính tiền</span>
+                                                                                break;
+                                                                            case "Completed":
+                                                                                <span class="badge bg-success text-white px-2 py-1 order-status-badge">Đã xong</span>
+                                                                                break;
+                                                                            case "Cancelled":
+                                                                                <span class="badge bg-light text-muted px-2 py-1 order-status-badge">Đã hủy</span>
+                                                                                break;
+                                                                        }
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="d-flex justify-content-center gap-1">
+                                                                            <button class="btn btn-sm btn-light border rounded-pill px-2" onclick="showOrderDetail(@item.Order.OrderId)">Xem</button>
+
+                                                                            @if ( item.Order.Status == "Cancelled")
+                                                                            {
+                                                                                <button class="btn btn-sm btn-outline-danger rounded-pill px-2"
+                                                                                        onclick="deleteOrder(@item.Order.OrderId)"
+                                                                                        title="@(item.Order.Status == "Paid" ? "Xóa đơn Đã thanh toán (Cẩn thận!)" : "Xóa đơn Đã hủy")">
+                                                                                    <i class="fas fa-trash"></i>
+                                                                                </button>
+                                                                            }
+
+                                                                            @if (item.Order.Status == "AwaitingPayment")
+                                                                            {
+                                                                                <button class="btn btn-sm btn-outline-primary rounded-pill px-2" onclick="printInvoice(@item.Order.OrderId)"><i class="fas fa-print"></i></button>
+                                                                                <button class="btn btn-sm btn-success rounded-pill px-2" onclick="confirmPayment(@item.Order.OrderId)">Thu tiền</button>
+                                                                            }
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div class="d-flex justify-content-between align-items-center mt-4 px-3 bg-white p-3 rounded-3 shadow-sm">
+                <div class="text-secondary small">
+                    Trang <b>@ViewBag.CurrentPage</b> / <b>@ViewBag.TotalPages</b>
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        @* Nút Previous *@
+                        <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Index", "Order", new { status = currentStatus, searchQuery = ViewBag.SearchQuery, startDate = startDateStr, endDate = endDateStr, page = ViewBag.CurrentPage - 1 })">«</a>
+                        </li>
+
+                        @* Hiển thị danh sách trang (Tối ưu hóa: chỉ hiển thị tối đa 5 trang xung quanh trang hiện tại) *@
+                        @{
+                            int startPage = Math.Max(1, ViewBag.CurrentPage - 2);
+                            int endPage = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(ViewBag.CurrentPage == i ? "active" : "")">
+                                <a class="page-link @(ViewBag.CurrentPage == i ? "bg-danger border-danger text-white" : "text-dark")"
+                                   href="@Url.Action("Index", "Order", new { status = currentStatus, searchQuery = ViewBag.SearchQuery, startDate = startDateStr, endDate = endDateStr, page = i })">@i</a>
+                            </li>
+                        }
+
+                        @* Nút Next *@
+                        <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Index", "Order", new { status = currentStatus, searchQuery = ViewBag.SearchQuery, startDate = startDateStr, endDate = endDateStr, page = ViewBag.CurrentPage + 1 })">»</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    }
 </div>
 
 <div id="orderDetailContainer"></div>
-@Html.AntiForgeryToken()
+
 @section Scripts {
     <script>
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+
+        $(document).ready(function () {
+            // KÍCH HOẠT FLATPICKR ĐỊNH DẠNG VN CHO 2 Ô INPUT NGÀY
+            const flatpickrConfig = {
+                locale: "vn",
+                dateFormat: "d/m/Y",  // Định dạng hiển thị cho người dùng: dd/mm/yyyy
+                allowInput: true,
+                clickOpens: true
+            };
+
+            flatpickr("#startDate", flatpickrConfig);
+            flatpickr("#endDate", flatpickrConfig);
+
+            $(document).on('click', '#orderDetailContainer .btn-danger, #orderDetailContainer button:contains("Cập nhật")', function (e) {
+                e.preventDefault();
+                submitModalStatusUpdate();
+            });
+
+            updateNotificationBadges();
+        });
+
+        function updateNotificationBadges() {
+            let pendingCount = $('.order-status-badge:contains("Chờ duyệt")').length;
+            let processingCount = $('.order-status-badge:contains("Đang phục vụ")').length;
+            let awaitingCount = $('.order-status-badge:contains("Tính tiền")').length;
+
+            $('.status-count-Pending').text(pendingCount).toggle(pendingCount > 0);
+            $('.status-count-Processing').text(processingCount).toggle(processingCount > 0);
+
+            if (awaitingCount > 0) {
+                $('.status-count-AwaitingPayment').text(awaitingCount).addClass('bg-danger').removeClass('bg-primary').show();
+            } else {
+                $('.status-count-AwaitingPayment').hide();
+            }
+        }
+
+        function switchTab(statusValue) {
+            var form = $('#searchForm');
+            form.find('input[name="status"]').val(statusValue);
+            form.submit();
+        }
+
         function showOrderDetail(orderId) {
             $('#orderDetailContainer').html('<div class="text-center p-5"><div class="spinner-border text-danger"></div></div>');
             $.get('/Admin/Order/GetDetails/' + orderId, function (data) {
                 $('#orderDetailContainer').html(data);
                 $('#orderDetailModal').modal('show');
-            }).fail(function() {
-                alert("Không thể tải chi tiết đơn hàng.");
             });
         }
 
         function printInvoice(orderId) {
-            var width = 800;
-            var height = 900;
-            var left = (screen.width - width) / 2;
-            var top = (screen.height - height) / 2;
-            window.open('/Admin/Order/PrintInvoice/' + orderId, '_blank',
-                        'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes');
+            var width = 800; var height = 900;
+            var left = (screen.width - width) / 2; var top = (screen.height - height) / 2;
+            window.open('/Admin/Order/PrintInvoice/' + orderId, '_blank', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',scrollbars=yes');
         }
 
-        function updateStatus(id) {
-            var status = $('#statusSelect').val();
-            var token = $('input[name="__RequestVerificationToken"]').val();
+        function confirmPayment(orderId) {
+            Swal.fire({
+                title: 'Xác nhận thu tiền?',
+                text: `Hệ thống sẽ chuyển trạng thái Đơn hàng #${orderId} thành Hoàn tất và giải phóng bàn trống.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="fas fa-check-circle me-1"></i> Đúng, đã thu đủ!',
+                cancelButtonText: 'Hủy bỏ'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+                    $.ajax({
+                        url: '/Admin/Order/UpdateStatus',
+                        type: 'POST',
+                        data: { id: orderId, status: 'Completed', __RequestVerificationToken: token },
+                        success: function (res) {
+                            if (res.success) {
+                                Toast.fire({
+                                    icon: 'success',
+                                    title: 'Đã hoàn tất thanh toán & giải phóng bàn!'
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire('Thất bại', "Đã xảy ra lỗi: " + res.message, 'error');
+                            }
+                        }
+                    });
+                }
+            });
+        }
 
-            $('.btn-update-status').prop('disabled', true);
+        function submitModalStatusUpdate() {
+            var orderText = $('#orderDetailContainer .modal-title').text() || $('#orderDetailContainer').text();
+            var matches = orderText.match(/#(\d+)/);
+
+            if (!matches) {
+                Swal.fire('Lỗi', 'Không trích xuất được mã đơn hàng để cập nhật!', 'error');
+                return;
+            }
+            var orderId = matches[1];
+            var selectStatus = $('#orderDetailContainer select').val();
+            if (!selectStatus) {
+                Swal.fire('Nhắc nhở', 'Vui lòng chọn một trạng thái hợp lệ trước khi nhấn Cập nhật!', 'info');
+                return;
+            }
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
 
             $.ajax({
                 url: '/Admin/Order/UpdateStatus',
                 type: 'POST',
-                data: {
-                    __RequestVerificationToken: token,
-                    id: id,
-                    status: status
-                },
-                success: function (response) {
-                    if (response.success) {
+                data: { id: orderId, status: selectStatus, __RequestVerificationToken: token },
+                success: function (res) {
+                    if (res.success) {
                         $('#orderDetailModal').modal('hide');
-                        location.reload();
+                        Swal.fire({
+                            title: 'Thành công!',
+                            text: 'Cập nhật trạng thái đơn hàng thành công.',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
                     } else {
-                        alert("Lỗi: " + response.message);
-                        $('.btn-update-status').prop('disabled', false);
+                        Swal.fire('Lỗi hệ thống', res.message, 'error');
                     }
+                },
+                error: function () {
+                    Swal.fire('Thất bại', 'Không thể gửi yêu cầu kết nối đến máy chủ!', 'error');
                 }
             });
-        }
-        function confirmPayment(orderId) {
-            if (confirm("Xác nhận đã thu tiền và dọn bàn cho đơn hàng #" + orderId + "?")) {
-                // Gọi AJAX đến Action UpdateStatus trong OrderController (Admin)
-                $.ajax({
-                    url: '/Admin/Order/UpdateStatus',
-                    type: 'POST',
-                    data: {
-                        id: orderId,
-                        status: 'Completed'
-                    },
-                    success: function (res) {
-                        if (res.success) {
-                            alert("Thanh toán thành công! Bàn đã được giải phóng.");
-                            location.reload(); // Load lại trang để thấy bàn trống
-                        } else {
-                            alert("Lỗi: " + res.message);
-                        }
-                    },
-                    error: function () {
-                        alert("Không thể kết nối đến hệ thống. Vui lòng kiểm tra lại Controller!");
-                    }
-                });
-            }
-        }
-        function executeStatusUpdate(orderId, status) {
-            if (confirm("Xác nhận cập nhật trạng thái đơn hàng?")) {
-                // Lấy token từ input ẩn mà ASP.NET tự sinh ra
-                var token = $('input[name="__RequestVerificationToken"]').val();
 
-                $.ajax({
-                    url: '/Admin/Order/UpdateStatus',
-                    type: 'POST',
-                    data: {
-                        id: orderId,
-                        status: status,
-                        __RequestVerificationToken: token // Bắt buộc phải có dòng này
-                    },
-                    success: function (res) {
-                        if (res.success) {
-                            location.reload();
-                        } else {
-                            alert("Lỗi: " + res.message);
+        }
+                function deleteOrder(orderId) {
+            Swal.fire({
+                title: 'Bạn có chắc chắn muốn xóa?',
+                text: "Đơn hàng #${orderId} sẽ bị xóa vĩnh viễn khỏi hệ thống!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Đồng ý, xóa ngay!',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+                    $.ajax({
+                        url: '/Admin/Order/DeleteOrder', // Action mới ở Controller
+                        type: 'POST',
+                        data: { id: orderId, __RequestVerificationToken: token },
+                        success: function (res) {
+                            if (res.success) {
+                                Toast.fire({
+                                    icon: 'success',
+                                    title: res.message
+                                }).then(() => {
+                                    location.reload(); // Tải lại trang sau khi xóa thành công
+                                });
+                            } else {
+                                Swal.fire('Thất bại', res.message, 'error');
+                            }
+                        },
+                        error: function () {
+                            Swal.fire('Lỗi', 'Không thể kết nối đến máy chủ.', 'error');
                         }
-                    },
-                    error: function () {
-                        alert("Lỗi kết nối hệ thống!");
-                    }
-                });
-            }
+                    });
+                }
+            });
         }
     </script>
 }

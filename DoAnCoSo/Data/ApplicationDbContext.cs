@@ -22,11 +22,12 @@ namespace DoAnCoSo.Data
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Promotion> Promotions { get; set; }
+        public DbSet<PreOrderItem> PreOrderItems { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Đổi tên các bảng Identity mặc định sang tên đơn giản hơn
+            // --- Cấu hình Identity của bạn ---
             modelBuilder.Entity<User>().ToTable("Users");
             modelBuilder.Entity<IdentityRole<int>>().ToTable("Roles");
             modelBuilder.Entity<IdentityUserRole<int>>().ToTable("UserRoles");
@@ -35,8 +36,21 @@ namespace DoAnCoSo.Data
             modelBuilder.Entity<IdentityRoleClaim<int>>().ToTable("RoleClaims");
             modelBuilder.Entity<IdentityUserToken<int>>().ToTable("UserTokens");
 
-            // Nếu sau này bạn muốn Nhân viên xác nhận đơn hàng, 
-            // có thể thêm StaffId vào Order và cấu hình tại đây.
+            // --- CẤU HÌNH PRE-ORDER (Đặt món trước) ---
+
+            // Thiết lập mối quan hệ 1-Nhiều giữa Booking và PreOrderItem
+            modelBuilder.Entity<PreOrderItem>()
+                .HasOne(p => p.Booking)
+                .WithMany(b => b.PreOrderItems)
+                .HasForeignKey(p => p.BookingId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa Booking sẽ xóa sạch các món đã chọn
+
+            // Thiết lập quan hệ giữa PreOrderItem và Product (để lấy giá/tên món)
+            modelBuilder.Entity<PreOrderItem>()
+                .HasOne(p => p.Product)
+                .WithMany()
+                .HasForeignKey(p => p.ProductId)
+                .OnDelete(DeleteBehavior.Restrict); // Không cho xóa món nếu vẫn còn đơn PreOrder
         }
     }
 }

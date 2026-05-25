@@ -1,111 +1,54 @@
 ﻿@model IEnumerable<DoAnCoSo.Models.Booking>
-
 @{
     ViewData["Title"] = "Lịch sử đặt bàn";
 }
 
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold text-danger text-uppercase">Lịch sử đặt bàn của bạn</h2>
-        <a asp-action="Index" class="btn btn-outline-danger rounded-pill shadow-sm">
-            <i class="bi bi-plus-circle"></i> Đặt bàn mới
-        </a>
+        <h2 class="fw-bold text-danger">LỊCH SỬ ĐẶT BÀN</h2>
     </div>
 
-    <div class="card shadow-sm border-0 pt-3" style="border-radius: 15px;">
+    <div class="card mb-4 border-0 shadow-sm p-3">
+        <form method="get" class="row g-2">
+            <div class="col-md-6">
+                <input type="text" name="search" class="form-control" placeholder="Tìm theo mã Check-in..." value="@Context.Request.Query["search"]">
+            </div>
+            <div class="col-md-4">
+                <select name="status" class="form-select">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Pending">Chờ xác nhận</option>
+                    <option value="Confirmed">Đã xác nhận</option>
+                    <option value="Cancelled">Đã hủy</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-danger w-100"><i class="bi bi-search"></i> Tìm</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card shadow-sm border-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light text-secondary">
                     <tr>
-                        <th class="ps-4">Mã Check-in (QR)</th>
-                        <th>Email nhận mã</th>
-                        <th>Thời gian đến</th>
+                        <th>Mã QR</th>
+                        <th>Thời gian</th>
                         <th>Số khách</th>
-                        <th>Bàn/Vị trí</th>
+                        <th>Bàn</th>
                         <th>Trạng thái</th>
-                        <th class="text-center">Chi tiết</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if (!Model.Any())
-                    {
-                        <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">Bạn chưa có lịch đặt bàn nào.</td>
-                        </tr>
-                    }
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td class="ps-4">
-                                <div class="d-flex flex-column align-items-center" style="width: 110px;">
-                                    <div class="text-center p-1 border rounded bg-white shadow-sm">
-                                        @* Sử dụng QuickChart để hiển thị ổn định hơn trên mọi trình duyệt *@
-                                        <a href="https://quickchart.io/qr?text=@item.CheckInCode&size=500" target="_blank" title="Click để phóng to">
-                                            <img src="https://quickchart.io/qr?text=@item.CheckInCode&size=100&ecLevel=Q"
-                                                 alt="QR Code"
-                                                 style="width: 75px; height: 75px; display: block;"
-                                                 onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=@item.CheckInCode'" />
-                                        </a>
-                                    </div>
-                                    <small class="fw-bold text-primary mt-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">
-                                        @item.CheckInCode
-                                    </small>
-                                </div>
-                            </td>
-                            <td class="text-muted small">@item.Email</td>
+                            <td><img src="https://quickchart.io/qr?text=@item.CheckInCode&size=50" style="width:50px" /> <br> <small>@item.CheckInCode</small></td>
+                            <td>@item.BookingDate.ToString("HH:mm dd/MM/yyyy")</td>
+                            <td>@item.GuestCount khách</td>
+                            <td>@(item.Table?.TableName ?? "Chưa có")</td>
                             <td>
-                                <span class="fw-bold text-dark">@item.BookingDate.ToString("HH:mm")</span><br />
-                                <small class="text-muted">@item.BookingDate.ToString("dd/MM/yyyy")</small>
-                            </td>
-                            <td class="fw-medium">@item.GuestCount người</td>
-                            <td>
-                                @if (item.Table != null)
-                                {
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">
-                                        <i class="bi bi-geo-alt-fill"></i> @item.Table.TableName
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted small fst-italic">Đang chờ xếp...</span>
-                                }
-                            </td>
-                            <td>
-                                @switch (item.Status)
-                                {
-                                    case "Pending":
-                                        <span class="badge rounded-pill bg-warning text-dark px-3">Chờ xác nhận</span>
-                                        break;
-                                    case "Confirmed":
-                                        <span class="badge rounded-pill bg-success px-3">Đã xác nhận</span>
-                                        break;
-                                    case "Cancelled":
-                                        <span class="badge rounded-pill bg-secondary px-3">Đã hủy</span>
-                                        break;
-                                    default:
-                                        <span class="badge rounded-pill bg-dark px-3">@item.Status</span>
-                                        break;
-                                }
-                            </td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-light border rounded-circle shadow-sm"
-                                        data-bs-toggle="modal" data-bs-target="#modal-@item.BookingId">
-                                    <i class="bi bi-search text-danger"></i>
-                                </button>
-
-                                <div class="modal fade" id="modal-@item.BookingId" tabindex="-1">
-                                    <div class="modal-dialog modal-dialog-centered modal-sm">
-                                        <div class="modal-content border-0 shadow">
-                                            <div class="modal-header bg-danger text-white border-0">
-                                                <h6 class="modal-title"><i class="bi bi-chat-left-text me-2"></i>Ghi chú</h6>
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body text-start p-4">
-                                                <p class="mb-0">@(string.IsNullOrEmpty(item.Note) ? "Không có yêu cầu đặc biệt nào từ bạn." : item.Note)</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <span class="badge @(item.Status == "Confirmed" ? "bg-success" : "bg-warning")">@item.Status</span>
                             </td>
                         </tr>
                     }
@@ -114,19 +57,3 @@
         </div>
     </div>
 </div>
-
-@section Styles {
-    <style>
-        .qrcode-img img {
-            margin: 0 auto;
-            border: 1px solid #eee;
-            padding: 3px;
-            background: #fff;
-            border-radius: 4px;
-        }
-
-        .table-hover tbody tr:hover {
-            background-color: rgba(220, 53, 69, 0.02);
-        }
-    </style>
-}

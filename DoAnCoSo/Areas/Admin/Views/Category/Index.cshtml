@@ -13,6 +13,24 @@
             </a>
         </div>
         <div class="card-body">
+
+            @* ================= BỘ HIỂN THỊ THÔNG BÁO LỖI / THÀNH CÔNG ================= *@
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @* ========================================================================= *@
+
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead class="table-light">

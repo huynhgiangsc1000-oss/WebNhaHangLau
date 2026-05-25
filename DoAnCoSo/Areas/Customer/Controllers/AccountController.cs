@@ -53,7 +53,9 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                     await _userManager.AddToRoleAsync(user, "Customer");
                     await _signInManager.SignInAsync(user, isPersistent: false);
 
-                    // Kiểm tra và điều hướng về returnUrl nếu có (ví dụ trang Menu kèm tableId)
+                    // --- BỔ SUNG: Đồng bộ đơn đặt bàn cho khách vừa Đăng ký tại bàn ---
+                    await LinkGuestBookingToUserAsync(user.Id);
+
                     if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
                         return Redirect(returnUrl);
@@ -72,39 +74,40 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         [HttpGet]
         public IActionResult Login(string returnUrl = null)
         {
-            // Lưu returnUrl vào ViewData để truyền sang form đăng nhập trong View
             ViewData["ReturnUrl"] = returnUrl;
             return View();
         }
 
         [HttpPost]
-        [HttpPost]
-        // Areas/Customer/Controllers/AccountController.cs
-        [HttpPost]
         public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
         {
+            ViewData["ReturnUrl"] = returnUrl;
             if (ModelState.IsValid)
             {
                 var result = await _signInManager.PasswordSignInAsync(model.Phone, model.Password, model.RememberMe, false);
 
                 if (result.Succeeded)
                 {
-                    // A. Khôi phục session bàn từ Cookie (nếu có)
+                    // Khôi phục session bàn từ Cookie (nếu có)
                     var tableIdFromCookie = Request.Cookies["SavedTableId"];
                     if (!string.IsNullOrEmpty(tableIdFromCookie))
                     {
                         HttpContext.Session.SetString("TableId", tableIdFromCookie);
                     }
 
-                    // B. Điều hướng quan trọng:
-                    // Nếu có returnUrl (ví dụ: /Customer/Table/AccessTable/5), hãy quay lại đó
+                    // --- BỔ SUNG: Đồng bộ đơn đặt bàn cho khách vừa Đăng nhập tại bàn ---
+                    var user = await _userManager.FindByNameAsync(model.Phone);
+                    if (user != null)
+                    {
+                        await LinkGuestBookingToUserAsync(user.Id);
+                    }
+
+                    // Điều hướng
                     if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
                         return Redirect(returnUrl);
                     }
 
-                    // Nếu không có returnUrl thì mới phân quyền về Home Admin/Customer
-                    var user = await _userManager.FindByNameAsync(model.Phone);
                     var roles = await _userManager.GetRolesAsync(user);
                     if (roles.Contains("Admin"))
                         return RedirectToAction("Index", "Home", new { area = "Admin" });
@@ -119,12 +122,29 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();
-
-            // Lưu ý: Không nên xóa "SavedTableId" trong Cookie ở đây 
-            // để khi họ đăng nhập lại vẫn còn số bàn cũ.
             HttpContext.Session.Remove("TableId");
-
             return RedirectToAction("Index", "Home", new { area = "Customer" });
+        }
+
+        // --- HÀM PHỤ TRỢ: Tự động kết nối đơn đặt bàn vãng lai vào tài khoản thành viên ---
+        private async Task LinkGuestBookingToUserAsync(int userId)
+        {
+            var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
+
+            if (!string.IsNullOrEmpty(tableIdStr))
+            {
+                int tableId = int.Parse(tableIdStr);
+
+                // Tìm đơn đặt bàn tại đúng số bàn này, trạng thái đã CheckedIn nhưng UserId vẫn đang NULL
+                var guestBooking = await _context.Bookings
+                    .FirstOrDefaultAsync(b => b.TableId == tableId && b.Status == "CheckedIn" && b.UserId == null);
+
+                if (guestBooking != null)
+                {
+                    guestBooking.UserId = userId;
+                    await _context.SaveChangesAsync();
+                }
+            }
         }
     }
 }

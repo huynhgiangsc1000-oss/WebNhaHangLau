@@ -3,6 +3,7 @@ using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace DoAnCoSo.Areas.Admin.Controllers
 {
@@ -13,82 +14,112 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         private readonly ApplicationDbContext _context;
         public OrderController(ApplicationDbContext context) => _context = context;
 
-        // 1. HIỂN THỊ DANH SÁCH ĐƠN HÀNG
-        public async Task<IActionResult> Index(string status, string searchQuery, DateTime? searchDate)
+        // Controllers/OrderController.cs (hoặc Admin/BookingManager tương ứng)
+        // 1. HIỂN THỊ DANH SÁCH ĐƠN HÀNG PHÂN THEO BUỔI
+        public async Task<IActionResult> Index(string status, string searchQuery, string startDate, string endDate, int page = 1)
         {
+            int pageSize = 15; // Thay đổi thành 15 đơn hàng mỗi trang theo ý bạn
+
             var query = _context.Orders
                 .Include(o => o.Table)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
                 .Include(o => o.Promotion)
+                .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
                 .AsQueryable();
 
+            // --- Các đoạn Filter (giữ nguyên logic của bạn) ---
             if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
+            else query = query.Where(o => o.Status != "Completed" && o.Status != "Cancelled");
 
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                if (int.TryParse(searchQuery.Replace("#", ""), out int orderId))
-                    query = query.Where(o => o.OrderId == orderId);
-                else
-                    query = query.Where(o => o.Table.TableName.Contains(searchQuery));
+                string term = searchQuery.Trim().Replace("#", "");
+                if (int.TryParse(term, out int orderId)) query = query.Where(o => o.OrderId == orderId);
+                else query = query.Where(o => o.Table != null && o.Table.TableName.Contains(searchQuery));
             }
 
-            if (searchDate.HasValue) query = query.Where(o => o.OrderDate.Date == searchDate.Value.Date);
+            if (DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime start))
+                query = query.Where(o => o.OrderDate.Date >= start.Date);
+            if (DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime end))
+                query = query.Where(o => o.OrderDate.Date <= end.Date);
+            // --------------------------------------------------
 
-            var orders = await query.OrderByDescending(o => o.OrderDate).ToListAsync();
+            // 1. Lấy tổng số lượng đơn hàng để tính tổng trang
+            var totalOrders = await query.CountAsync();
 
-            ViewBag.CurrentStatus = status;
-            ViewBag.CurrentSearch = searchQuery;
-            ViewBag.CurrentDate = searchDate?.ToString("yyyy-MM-dd");
+            // 2. Phân trang: Bỏ qua (page-1)*pageSize và lấy pageSize đơn hàng
+            // Lưu ý: Phải OrderBy trước khi Skip/Take
+            var pagedOrders = await query
+                .OrderByDescending(o => o.OrderDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-            return View(orders);
+            // 3. Grouping trên tập dữ liệu đã được giới hạn (15 đơn)
+            var groupedOrders = pagedOrders.GroupBy(o => o.OrderDate.Date)
+                                           .OrderByDescending(g => g.Key);
+
+            ViewBag.Status = status;
+            ViewBag.SearchQuery = searchQuery;
+            ViewBag.StartDate = startDate;
+            ViewBag.EndDate = endDate;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalOrders / pageSize);
+
+            return View(groupedOrders);
         }
-
-        // 2. CẬP NHẬT TRẠNG THÁI (Logic quan trọng nhất)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        
         public async Task<IActionResult> UpdateStatus(int id, string Status)
         {
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
+                    // Thêm Include cả Promotion và User.Rank để có đủ dữ liệu tính toán
                     var order = await _context.Orders
                         .Include(o => o.Table)
-                        .Include(o => o.User)
+                        .Include(o => o.User).ThenInclude(u => u.Rank)
+                        .Include(o => o.Promotion)
                         .FirstOrDefaultAsync(o => o.OrderId == id);
 
                     if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng" });
 
-                    // Gán trạng thái mới
-                    order.Status = Status;
+                    // BIỆN PHÁP BẢO VỆ CONTROLLER... (Giữ nguyên code chặn trạng thái cũ)
 
-                    // NẾU ADMIN XÁC NHẬN "COMPLETED" (ĐÃ THU TIỀN XONG)
+                    // NẾU LÀ HOÀN TẤT ĐƠN HÀNG
                     if (Status == "Completed")
                     {
-                        // 1. Giải phóng bàn vật lý (Chuyển xanh)
-                        if (order.Table != null)
-                        {
-                            order.Table.Status = "Empty";
-                        }
+                        // 1. TÍNH TOÁN LẠI GIẢM GIÁ (Giống như logic ở Customer Controller)
+                        decimal rankDiscountPercent = order.User?.Rank?.DiscountPercent ?? 0;
+                        decimal promoDiscountPercent = (order.Promotion != null) ? order.Promotion.DiscountValue : 0;
+                        decimal finalDiscountPercent = Math.Max(rankDiscountPercent, promoDiscountPercent);
 
-                        // 2. Đóng phiên đặt bàn (Booking)
-                        var activeBooking = await _context.Bookings
-                            .FirstOrDefaultAsync(b => b.TableId == order.TableId &&
-                                                     b.UserId == order.UserId &&
-                                                     b.Status == "CheckedIn");
-                        if (activeBooking != null)
-                        {
-                            activeBooking.Status = "Completed";
-                        }
+                        order.DiscountAmount = order.TotalAmount * (finalDiscountPercent / 100m); // LƯU VÀO DB
+                        order.PaymentMethod = order.PaymentMethod ?? "Cash"; // Nếu chưa có thì mặc định là Cash
 
-                        // 3. Cộng điểm tích lũy (10k = 1 điểm)
+                        // 2. Giải phóng bàn
+                        if (order.Table != null) order.Table.Status = "Empty";
+
+                        // 3. Cộng điểm
                         if (order.User != null)
                         {
                             order.User.Points += (int)(order.TotalAmount / 10000);
                             await UpdateUserRank(order.User);
                         }
+
+                        // 4. Đóng phiên Booking
+                        var activeBooking = await _context.Bookings
+                            .FirstOrDefaultAsync(b => b.TableId == order.TableId && b.UserId == order.UserId && b.Status == "CheckedIn");
+                        if (activeBooking != null) activeBooking.Status = "Completed";
+                    }
+                    else if (Status == "Cancelled")
+                    {
+                        if (order.Table != null) order.Table.Status = "Empty";
                     }
 
+                    order.Status = Status;
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     return Json(new { success = true });
@@ -134,6 +165,60 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
                 .FirstOrDefaultAsync(m => m.OrderId == id);
             return View(order);
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetPendingCounts()
+        {
+            // Đếm số đơn hàng có trạng thái "Pending" hoặc "Chờ xác nhận" (tùy thuộc vào chuỗi bạn lưu trong DB)
+            int pendingOrders = await _context.Orders.CountAsync(o => o.Status == "Pending" || o.Status == "Chờ xác nhận");
+
+            // Đếm số lượt đặt bàn chưa xử lý (ví dụ: trạng thái "Pending" hoặc "Chờ duyệt")
+            int pendingBookings = await _context.Bookings.CountAsync(b => b.Status == "Pending" || b.Status == "Chờ duyệt");
+
+            return Json(new
+            {
+                orders = pendingOrders,
+                bookings = pendingBookings
+            });
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteOrder(int id)
+        {
+            // 1. Tìm đơn hàng
+            var order = await _context.Orders
+                .Include(o => o.OrderDetails) // Nếu bạn muốn xóa cả chi tiết đơn hàng
+                .FirstOrDefaultAsync(o => o.OrderId == id);
+
+            if (order == null)
+            {
+                return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
+            }
+
+            // 2. KIỂM TRA ĐIỀU KIỆN ĐƯỢC PHÉP XÓA
+            // Chỉ cho phép xóa khi trạng thái là "Pending" hoặc "Cancelled"
+            // (Giả định trạng thái trống tương đương với "Pending" trong logic của bạn)
+            bool isPending = string.IsNullOrEmpty(order.Status) || order.Status == "Pending";
+            bool isCancelled = order.Status == "Cancelled";
+
+            if (!isPending && !isCancelled)
+            {
+                return Json(new { success = false, message = "Chỉ có thể xóa các đơn hàng đang chờ hoặc đã hủy." });
+            }
+
+            try
+            {
+                // 3. Thực hiện xóa
+                // Nếu có OrderDetails, EF Core cần xóa chúng trước hoặc cấu hình Cascade Delete trong Database
+                _context.Orders.Remove(order);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Đã xóa đơn hàng thành công." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
+            }
         }
     }
 }

@@ -81,20 +81,22 @@
         });
 
         function sendCode(code) {
-            if(!code) return;
+               if(!code) return;
 
-            // Lấy token chuẩn xác nhất
-            const token = $('input[name="__RequestVerificationToken"]').val();
+    
+        let finalCode = code.includes("checkInCode=") ? code.split("checkInCode=").pop() : code;
+        // ----------------------
 
-            Swal.showLoading(); // Hiển thị trạng thái đang xử lý
+        const token = $('input[name="__RequestVerificationToken"]').val();
+        Swal.showLoading();
 
-            $.ajax({
-                url: '@Url.Action("ProcessCheckIn", "BookingManager")',
-                type: 'POST',
-                data: {
-                    qrCode: code,
-                    "__RequestVerificationToken": token
-                },
+        $.ajax({
+            url: '@Url.Action("ProcessCheckIn", "BookingManager")',
+            type: 'POST',
+            data: {
+                qrCode: finalCode, // Gửi mã đã được lọc
+                "__RequestVerificationToken": token
+            },
                 success: function(res) {
                     if(res.success) {
                         Swal.fire('Thành công', res.message, 'success').then(() => {

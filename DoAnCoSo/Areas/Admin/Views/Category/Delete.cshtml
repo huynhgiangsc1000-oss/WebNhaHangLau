@@ -1,15 +1,33 @@
 ﻿@model DoAnCoSo.Models.Category
 
-<div class="container pt-4 text-center">
-    <div class="card shadow-sm border-0 d-inline-block p-5" style="border-radius: 15px; max-width: 500px;">
-        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
-        <h3 class="fw-bold mt-3">Xác nhận xóa?</h3>
-        <p class="text-muted">Bạn có chắc chắn muốn xóa loại món <strong>@Model.CategoryName</strong> không? Hành động này không thể hoàn tác.</p>
+<div class="container pt-5 text-center">
+    <div class="card shadow-sm border-0 d-inline-block p-5" style="border-radius: 15px; max-width: 550px;">
 
-        <form asp-action="Delete">
-            <input type="hidden" asp-for="CategoryId" />
-            <button type="submit" class="btn btn-danger px-4 py-2 me-2">Đúng, Xóa nó!</button>
-            <a asp-action="Index" class="btn btn-light px-4 py-2 border">Hủy bỏ</a>
-        </form>
+        @* Kiểm tra xem danh mục này có chứa sản phẩm hay không dựa trên dữ liệu Model *@
+        @if (Model.Products != null && Model.Products.Any())
+        {
+            <i class="bi bi-x-circle text-danger" style="font-size: 4rem;"></i>
+            <h3 class="fw-bold text-danger mt-3">Không thể xóa!</h3>
+            <p class="text-muted">
+                Danh mục <strong>@Model.CategoryName</strong> hiện đang chứa <span class="badge bg-info text-dark">@Model.Products.Count món ăn</span>.<br />
+                Bạn phải di chuyển hoặc xóa hết các món ăn thuộc danh mục này trước khi thực hiện xóa danh mục.
+            </p>
+
+            <div class="mt-4">
+                <a asp-action="Index" class="btn btn-secondary px-4 py-2 border">Quay lại danh sách</a>
+            </div>
+        }
+        else
+        {
+            <i class="bi bi-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
+            <h3 class="fw-bold mt-3">Xác nhận xóa?</h3>
+            <p class="text-muted">Bạn có chắc chắn muốn xóa loại món <strong>@Model.CategoryName</strong> không? Hành động này không thể hoàn tác.</p>
+
+            <form asp-action="Delete" class="mt-4">
+                <input type="hidden" asp-for="CategoryId" />
+                <button type="submit" class="btn btn-danger px-4 py-2 me-2">Đúng, Xóa nó!</button>
+                <a asp-action="Index" class="btn btn-light px-4 py-2 border">Hủy bỏ</a>
+            </form>
+        }
     </div>
 </div>

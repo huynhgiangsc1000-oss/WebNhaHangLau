@@ -80,7 +80,17 @@
                         <div class="py-3">
                             <i class="bi bi-person-fill-lock display-4 text-danger"></i>
                             <p class="mt-3 fw-bold text-danger">Bàn này hiện đang có khách!</p>
-                            <p class="text-muted small">Vui lòng chọn bàn khác hoặc liên hệ nhân viên để được hỗ trợ.</p>
+                            <p class="text-muted small">
+                                Nếu bạn là khách vãng lai đã được nhân viên check-in gán vào bàn này,
+                                vui lòng ấn nút bên dưới để tiến hành Đăng nhập/Đăng ký tài khoản và gọi món.
+                            </p>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <a href="@Url.Action("AccessTable", "Table", new { area = "Customer", id = table.TableId })"
+                                   class="btn btn-danger btn-lg rounded-pill px-4 shadow-sm">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>Tôi ngồi bàn này & Gọi món
+                                </a>
+                            </div>
                         </div>
                     }
                     else if (isReservedToday)

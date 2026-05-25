@@ -99,6 +99,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         }
 
         // 4. CALLBACK SAU KHI THANH TOÁN VNPAY XONG
+        // 4. CALLBACK SAU KHI THANH TOÁN VNPAY XONG
         public async Task<IActionResult> PaymentCallback()
         {
             var response = Request.Query;
@@ -115,11 +116,23 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             string vnp_ResponseCode = vnpay.GetResponseData("vnp_ResponseCode");
             string vnp_SecureHash = response["vnp_SecureHash"];
 
+            // Kiểm tra chữ ký và trạng thái thành công ("00" là thành công)
             if (vnpay.ValidateSignature(vnp_SecureHash, vnp_HashSecret) && vnp_ResponseCode == "00")
             {
                 int orderId = int.Parse(txnRef);
-                await CompleteOrderProcess(orderId, "VNPAY");
-                return RedirectToAction("PaymentSuccess", new { id = orderId });
+
+                // Gọi hàm dùng chung để chốt đơn và giải phóng bàn trong DB
+                bool success = await CompleteOrderProcess(orderId, "VNPAY");
+
+                if (success)
+                {
+                    // --- XÓA SESSION VÀ COOKIE Ở ĐÂY ---
+                    // Việc này giúp khách hàng không còn "giữ" bàn trên trình duyệt
+                    HttpContext.Session.Remove("TableId");
+                    Response.Cookies.Delete("SavedTableId");
+
+                    return RedirectToAction("PaymentSuccess", new { id = orderId });
+                }
             }
 
             return RedirectToAction("OrderDetails", new { id = int.Parse(txnRef), error = true });
@@ -158,64 +171,58 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         // 6. LOGIC DÙNG CHUNG: HOÀN TẤT ĐƠN HÀNG & GIẢI PHÓNG PHIÊN
         private async Task<bool> CompleteOrderProcess(int orderId, string paymentMethod)
         {
+            // 1. Lấy thông tin đơn hàng cùng các quan hệ cần thiết
             var order = await _context.Orders
                 .Include(o => o.Table)
-                .Include(o => o.User)
+                .Include(o => o.User).ThenInclude(u => u.Rank)
+                .Include(o => o.Promotion)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null) return false;
 
+            // 2. Tính toán giảm giá (Ưu tiên mức cao nhất)
+            decimal rankDiscountPercent = order.User?.Rank?.DiscountPercent ?? 0;
+            decimal promoDiscountPercent = (order.Promotion != null) ? order.Promotion.DiscountValue : 0;
+
+            decimal finalDiscountPercent = Math.Max(rankDiscountPercent, promoDiscountPercent);
+            decimal discountValue = order.TotalAmount * (finalDiscountPercent / 100m);
+
+            // 3. Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu (Data Integrity)
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
-                    // A. Cập nhật trạng thái đơn hàng
+                    // Cập nhật thông tin đơn hàng
                     order.Status = "Completed";
                     order.PaymentMethod = paymentMethod;
+                    order.DiscountAmount = discountValue; // Lưu số tiền được giảm vào DB
 
-                    // B. Giải phóng bàn vật lý (Chuyển sang Xanh)
+                    // Cập nhật điểm thưởng
+                    if (order.User != null)
+                    {
+                        order.User.Points += (int)(order.TotalAmount / 10000);
+                    }
+
+                    // Giải phóng bàn: Chuyển trạng thái bàn về "Empty" (Trống)
                     if (order.Table != null)
                     {
                         order.Table.Status = "Empty";
                     }
 
-                    // C. ĐÓNG PHIÊN ĐẶT BÀN (Rất quan trọng để chặn đặt món tiếp)
-                    var activeBooking = await _context.Bookings
-                        .FirstOrDefaultAsync(b => b.TableId == order.TableId
-                                             && b.UserId == order.UserId
-                                             && b.Status == "CheckedIn");
-                    if (activeBooking != null)
-                    {
-                        activeBooking.Status = "Completed";
-                    }
-
-                    // D. Xử lý điểm thưởng & Hạng thành viên
-                    if (order.User != null)
-                    {
-                        order.User.Points += (int)(order.TotalAmount / 10000); // 10k = 1đ
-                        // Cập nhật hạng ở đây nếu bạn đã có hàm UpdateUserRank
-                    }
-
-                    // E. DỌN DẸP GIỎ HÀNG (Xóa các món khách đã đặt hoặc định đặt)
-                    var cartItems = _context.CartItems.Where(c => c.UserId == order.UserId);
-                    _context.CartItems.RemoveRange(cartItems);
-
-                    // F. Xóa Session máy khách để ép kết thúc phiên làm việc
-                    HttpContext.Session.Remove("TableId");
-                    Response.Cookies.Delete("SavedTableId");
-
+                    // Lưu tất cả thay đổi
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
                     return true;
                 }
-                catch
+                catch (Exception)
                 {
+                    // Nếu xảy ra lỗi, hủy bỏ tất cả thao tác trong transaction
                     await transaction.RollbackAsync();
                     return false;
                 }
             }
         }
-
         // 7. TRANG THÔNG BÁO THÀNH CÔNG
         public async Task<IActionResult> PaymentSuccess(int id)
         {

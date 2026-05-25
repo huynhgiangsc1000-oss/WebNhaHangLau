@@ -15,6 +15,16 @@
                             <span asp-validation-for="CategoryName" class="text-danger small"></span>
                         </div>
 
+                      
+                        <div class="mb-3">
+                            <label asp-for="ParentId" class="form-label fw-bold">Thuộc nhóm danh mục</label>
+                            <select asp-for="ParentId" class="form-select" asp-items="ViewBag.ParentId">
+                                <option value="">-- Là danh mục gốc (Không có cha) --</option>
+                            </select>
+                            <span asp-validation-for="ParentId" class="text-danger small"></span>
+                        </div>
+                        @* -------------------------------------------------------- *@
+
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary px-4">Cập nhật</button>
                             <a asp-action="Index" class="btn btn-outline-secondary px-4">Hủy bỏ</a>

@@ -40,5 +40,6 @@ namespace DoAnCoSo.Models
         public int? UserId { get; set; }
         [ForeignKey("UserId")]
         public virtual User? User { get; set; }
+        public List<PreOrderItem> PreOrderItems { get; set; } = new List<PreOrderItem>();
     }
 }

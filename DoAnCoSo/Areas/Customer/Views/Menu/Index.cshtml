@@ -13,7 +13,7 @@
             background-color: #f8f9fa;
         }
 
-        /* Sidebar - Clean & Minimalist giống ảnh 2 */
+        /* Sidebar - Clean & Minimalist */
         .menu-sidebar {
             position: sticky;
             top: 80px;
@@ -22,7 +22,7 @@
         }
 
         .category-title-header {
-            color: #f26b21; /* Màu cam Manwah */
+            color: #f26b21;
             font-weight: 700;
             margin-bottom: 15px;
             text-transform: uppercase;
@@ -50,7 +50,7 @@
             color: #666;
         }
 
-        /* Card món ăn - Grid layout tối giản */
+        /* Card món ăn */
         .product-card {
             border: none;
             border-radius: 12px;
@@ -64,7 +64,7 @@
             }
 
         .product-img-wrapper {
-            aspect-ratio: 1/1; /* Ép ảnh thành hình vuông giống menu thật */
+            aspect-ratio: 1/1;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -104,7 +104,6 @@
             margin-bottom: 10px;
         }
 
-        /* Nút thêm món đỏ đô */
         .btn-quick-add {
             background-color: #a91e24;
             color: white;
@@ -121,6 +120,57 @@
                 transform: scale(1.05);
                 color: white;
             }
+
+        /* Hiệu ứng xoay mượt mà cho Icon Chevron */
+        .chevron-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .category-item [aria-expanded="true"] .chevron-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Custom Filter Bar */
+        .filter-bar {
+            background: #fff;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 25px;
+        }
+
+        .search-input-group {
+            border: 1px solid #ced4da;
+            border-radius: 25px;
+            overflow: hidden;
+            background: #fff;
+            transition: all 0.2s;
+        }
+
+            .search-input-group:focus-within {
+                border-color: #f26b21;
+                box-shadow: 0 0 0 0.2rem rgba(242, 107, 33, 0.25);
+            }
+
+            .search-input-group .form-control {
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            .search-input-group .btn-search {
+                background: transparent;
+                border: none;
+                color: #666;
+                padding: 0 15px;
+            }
+
+                .search-input-group .btn-search:hover {
+                    color: #f26b21;
+                }
+
+        .filter-select {
+            border-radius: 20px !important;
+        }
     </style>
 }
 
@@ -138,40 +188,41 @@
                 <h5 class="category-title-header">Món Lẻ <i class="bi bi-chevron-down small"></i></h5>
 
                 <div class="ps-1">
-                    <a asp-action="Index" asp-route-categoryId=""
-                       class="category-link @(currentCatId == null ? "active" : "")">Tất cả món</a>
+                    <a href="/Customer/Menu" class="category-link @(currentCatId == null ? "active" : "")">Tất cả món</a>
 
                     @if (categories != null)
                     {
                         @foreach (var cat in categories)
                         {
                             var hasSub = cat.SubCategories != null && cat.SubCategories.Any();
-                            // Kiểm tra xem danh mục đang chọn có phải là cat này hoặc con của cat này không
                             var isParentActive = currentCatId == cat.CategoryId || (hasSub && cat.SubCategories.Any(s => s.CategoryId == currentCatId));
 
                             <div class="category-item border-bottom">
                                 <div class="d-flex align-items-center justify-content-between">
-                                    <a asp-action="Index" asp-route-categoryId="@cat.CategoryId"
+                                    <a href="/Customer/Menu?categoryId=@cat.CategoryId"
                                        class="category-link flex-grow-1 @(currentCatId == cat.CategoryId ? "active" : "")">
                                         @cat.CategoryName.ToUpper()
                                     </a>
+
                                     @if (hasSub)
                                     {
-                                        <span class="px-3 py-2" data-bs-toggle="collapse" data-bs-target="#collapse-@cat.CategoryId" style="cursor:pointer">
-                                            <i class="bi @(isParentActive ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                                        <span class="px-3 py-2 text-muted"
+                                              data-bs-toggle="collapse"
+                                              data-bs-target="#collapse-@cat.CategoryId"
+                                              aria-expanded="@(isParentActive ? "true" : "false")"
+                                              style="cursor:pointer">
+                                            <i class="bi bi-chevron-down chevron-icon"></i>
                                         </span>
                                     }
                                 </div>
 
                                 @if (hasSub)
                                 {
-                                    <div id="collapse-@cat.CategoryId"
-                                         class="collapse @(isParentActive ? "show" : "")"
-                                         data-bs-parent="#menuAccordion">
+                                    <div id="collapse-@cat.CategoryId" class="collapse @(isParentActive ? "show" : "")" data-bs-parent="#menuAccordion">
                                         <div class="bg-light pb-2">
                                             @foreach (var sub in cat.SubCategories)
                                             {
-                                                <a asp-action="Index" asp-route-categoryId="@sub.CategoryId"
+                                                <a href="/Customer/Menu?categoryId=@sub.CategoryId"
                                                    class="category-link ps-4 small @(currentCatId == sub.CategoryId ? "active" : "")"
                                                    style="font-size: 0.9rem; border: none;">
                                                     <i class="bi bi-arrow-return-right me-2 text-muted"></i>@sub.CategoryName
@@ -188,6 +239,52 @@
         </div>
 
         <div class="col-lg-9 col-md-8">
+
+            <div class="filter-bar">
+                <form method="get" action="/Customer/Menu" id="filterForm">
+                    <input type="hidden" name="categoryId" value="@currentCatId" />
+
+                    <div class="row g-3 align-items-center">
+                        <div class="col-lg-5 col-md-12">
+                            <div class="input-group search-input-group">
+                                <input type="text" name="searchTerm" class="form-control"
+                                       placeholder="Tìm món ăn ngon tại Manwah..." value="@ViewBag.SearchTerm">
+                                <button class="btn btn-search" type="submit">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-md-6 col-6">
+                            <select name="priceRange" class="form-select filter-select" onchange="document.getElementById('filterForm').submit()">
+                                <option value="">-- Khoảng giá --</option>
+                                <option value="under100">Dưới 100.000đ</option>
+                                <option value="100to200">100.000đ - 200.000đ</option>
+                                <option value="over200">Trên 200.000đ</option>
+                            </select>
+                        </div>
+
+                        <div class="col-lg-4 col-md-6 col-6">
+                            <select name="sortOrder" class="form-select filter-select" onchange="document.getElementById('filterForm').submit()">
+                                <option value="">-- Sắp xếp theo --</option>
+                                <option value="price_asc">Giá: Thấp đến Cao</option>
+                                <option value="price_desc">Giá: Cao đến Thấp</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5 bg-white rounded-3 shadow-sm mb-4">
+                    <i class="bi bi-egg-fried text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-secondary">Không tìm thấy món ăn nào phù hợp!</h5>
+                    <p class="text-muted small">Vui lòng thử lại với từ khóa hoặc bộ lọc khác.</p>
+                    <a href="/Customer/Menu" class="btn btn-sm text-white" style="background-color: #a91e24; border-radius: 20px;">Xem tất cả món</a>
+                </div>
+            }
+
             <div class="row g-4">
                 @foreach (var item in Model)
                 {
@@ -238,9 +335,11 @@
         });
 
         function updateCartBadge() {
-            $.get('/Customer/Cart/GetCartCount', function (count) {
-                $('.cart-badge').text(count);
-            });
+            if ('@hasTable'.toLowerCase() === 'true') {
+                $.get('/Customer/Cart/GetCartCount', function (count) {
+                    $('.cart-badge').text(count);
+                });
+            }
         }
 
         function showProductDetail(productId) {
@@ -284,6 +383,18 @@
 
         $(document).ready(function() {
             updateCartBadge();
+
+            // Đặt lại đúng giá trị cho bộ lọc select từ ViewBag sau khi trang reload
+            $('select[name="priceRange"]').val('@ViewBag.PriceRange');
+            $('select[name="sortOrder"]').val('@ViewBag.SortOrder');
+
+            $('.collapse').on('shown.bs.collapse', function () {
+                $('span[data-bs-target="#' + this.id + '"]').attr('aria-expanded', 'true');
+            });
+
+            $('.collapse').on('hidden.bs.collapse', function () {
+                $('span[data-bs-target="#' + this.id + '"]').attr('aria-expanded', 'false');
+            });
         });
     </script>
 }

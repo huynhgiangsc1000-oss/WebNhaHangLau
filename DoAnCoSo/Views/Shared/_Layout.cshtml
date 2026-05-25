@@ -169,21 +169,30 @@
                 </div>
 
                 <div class="mt-2">
-                    <small class="text-uppercase text-secondary fw-bold px-4 mb-2 d-block" style="font-size: 10px; letter-spacing: 2px;">Main Dashboard</small>
+                    <small class="text-uppercase text-secondary fw-bold px-4 mb-2 mt-4 d-block" style="font-size: 10px; letter-spacing: 2px;">Operations</small>
                     <a class="nav-link-admin @(controller == "Home" ? "active" : "")" asp-area="Admin" asp-controller="Home" asp-action="Index">
                         <i class="bi bi-grid-1x2-fill me-3"></i> Bảng điều khiển
                     </a>
-
-                    <small class="text-uppercase text-secondary fw-bold px-4 mb-2 mt-4 d-block" style="font-size: 10px; letter-spacing: 2px;">Operations</small>
                     <a class="nav-link-admin @(controller == "Order" ? "active" : "")" asp-area="Admin" asp-controller="Order" asp-action="Index">
-                        <i class="bi bi-receipt me-3"></i> Đơn hàng
+                        <div class="d-flex w-100 align-items-center justify-content-between">
+                            <div>
+                                <i class="bi bi-receipt me-3"></i> Đơn hàng
+                            </div>
+                            <span id="order-pending-badge" class="badge rounded-pill bg-danger" style="display: none; font-size: 0.75rem;">0</span>
+                        </div>
                     </a>
+
                     <a class="nav-link-admin @(controller == "Table" ? "active" : "")" asp-area="Admin" asp-controller="Table" asp-action="Index">
                         <i class="bi bi-layers me-3"></i> Quản lý bàn
                     </a>
-                    @* Có thể thêm BookingManager tại đây nếu cần *@
+
                     <a class="nav-link-admin @(controller == "BookingManager" ? "active" : "")" asp-area="Admin" asp-controller="BookingManager" asp-action="Index">
-                        <i class="bi bi-calendar-check me-3"></i> Đặt bàn
+                        <div class="d-flex w-100 align-items-center justify-content-between">
+                            <div>
+                                <i class="bi bi-calendar-check me-3"></i> Đặt bàn
+                            </div>
+                            <span id="booking-pending-badge" class="badge rounded-pill bg-warning text-dark" style="display: none; font-size: 0.75rem;">0</span>
+                        </div>
                     </a>
 
                     @if (User.IsInRole("Admin"))
@@ -195,7 +204,6 @@
                         <a class="nav-link-admin @(controller == "Category" ? "active" : "")" asp-area="Admin" asp-controller="Category" asp-action="Index">
                             <i class="bi bi-tags me-3"></i> Loại món
                         </a>
-                        @* Nút quản lý Voucher/Ưu đãi *@
                         <a class="nav-link-admin @(controller == "Promotion" ? "active" : "")" asp-area="Admin" asp-controller="Promotion" asp-action="Index">
                             <i class="bi bi-ticket-perforated me-3"></i> Khuyến mãi
                         </a>
@@ -206,6 +214,9 @@
                         </a>
                         <a class="nav-link-admin @(controller == "Staff" ? "active" : "")" asp-area="Admin" asp-controller="Staff" asp-action="Index">
                             <i class="bi bi-person-vcard me-3"></i> Nhân viên
+                        </a>
+                        <a class="nav-link-admin @(controller == "Statistical" ? "active" : "")" asp-area="Admin" asp-controller="Statistical" asp-action="Index">
+                            <i class="bi bi-bar-chart-line-fill me-3"></i> Báo cáo thống kê
                         </a>
                     }
                 </div>
@@ -333,8 +344,39 @@
 
     <script>
         $(document).ready(function () {
+            // Luôn cập nhật giỏ hàng cho khách hàng
             updateCartBadge();
-        });
+
+            // SỬA LỖI: So sánh area chuẩn trong ASP.NET Core (ép kiểu chữ thường để tránh lỗi viết hoa/thường)
+            var currentArea = '@ViewContext.RouteData.Values["area"]?.ToString()';
+            if (currentArea === "Admin") {
+                updateAdminBadges();
+                // Cứ mỗi 30 giây tự động làm mới số lượng (Real-time polling đơn giản)
+                setInterval(updateAdminBadges, 30000);
+            }
+        }); // SỬA LỖI: Đóng ngoặc chuẩn cho $(document).ready
+
+        function updateAdminBadges() {
+            $.get('/Admin/Order/GetPendingCounts', function(data) {
+                // 1. Cập nhật số lượng Đơn hàng
+                const orderBadge = $('#order-pending-badge');
+                if (data.orders > 0) {
+                    orderBadge.text(data.orders).show();
+                } else {
+                    orderBadge.hide();
+                }
+
+                // 2. Cập nhật số lượng Đặt bàn
+                const bookingBadge = $('#booking-pending-badge');
+                if (data.bookings > 0) {
+                    bookingBadge.text(data.bookings).show();
+                } else {
+                    bookingBadge.hide();
+                }
+            }).fail(function() {
+                console.warn("Không thể lấy dữ liệu thông báo cho thanh điều hướng admin.");
+            });
+        }
 
         function updateCartBadge() {
             $.get('@Url.Action("GetCartCount", "Cart", new { area = "Customer" })', function(count) {
@@ -349,7 +391,6 @@
             });
         }
     </script>
-
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

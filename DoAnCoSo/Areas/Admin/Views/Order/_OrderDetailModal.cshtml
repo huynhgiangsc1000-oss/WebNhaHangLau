@@ -26,7 +26,34 @@
                         <p class="mb-1"><strong>Giờ đặt:</strong> @Model.OrderDate.ToString("HH:mm - dd/MM/yyyy")</p>
                         <p class="mb-1">
                             <strong>Trạng thái:</strong>
-                            <span class="fw-bold @(isAwaiting ? "text-primary" : "text-danger")">@Model.Status</span>
+                            <span class="fw-bold @(isAwaiting ? "text-primary" : "text-danger")">
+                                @switch (Model.Status)
+                                {
+                                    case "Pending":
+                                        <text>Chờ xác nhận</text>
+                                        break;
+                                    case "Processing":
+
+                                        <text>Đang phục vụ</text>
+                                        break;
+                                    case "AwaitingPayment":
+
+                                        <text>Chờ tính tiền</text>
+                                        break;
+                                    case "Completed":
+
+                                        <text>Đã hoàn tất</text>
+                                        break;
+                                    case "Cancelled":
+
+                                        <text>Đã hủy đơn</text>
+                                        break;
+                                    default:
+
+                                        @Model.Status
+                                        break;
+                                }
+                            </span>
                         </p>
                     </div>
 
@@ -98,7 +125,7 @@
                     @if (isAwaiting)
                     {
                         <button class="btn btn-success btn-lg w-100 fw-bold py-3 shadow"
-                                onclick="executeStatusUpdate(@Model.OrderId, 'Completed')">
+                                onclick="confirmPayment(@Model.OrderId)">
                             <i class="fas fa-check-double me-2"></i> ĐÃ THU TIỀN & TRẢ BÀN TRỐNG
                         </button>
                     }
@@ -106,11 +133,20 @@
                     {
                         <div class="input-group">
                             <select id="statusSelect" class="form-select border-danger">
-                                <option value="Pending" selected="@(Model.Status == "Pending")">Chờ xác nhận</option>
-                                <option value="Processing" selected="@(Model.Status == "Processing")">Đang phục vụ</option>
-                                <option value="Cancelled">Hủy đơn</option>
+                                @if (Model.Status == "Pending")
+                                {
+                                    <option value="Pending" selected>Chờ xác nhận</option>
+                                    <option value="Processing">Đang phục vụ</option>
+                                    <option value="Cancelled">Hủy đơn</option>
+                                }
+                                else if (Model.Status == "Processing")
+                                {
+                                    <option value="Processing" selected>Đang phục vụ</option>
+                                    <option value="AwaitingPayment">Chờ tính tiền</option>
+                                    <option value="Cancelled">Hủy đơn</option>
+                                }
                             </select>
-                            <button class="btn btn-danger px-4" onclick="updateStatus(@Model.OrderId)">Cập nhật</button>
+                            <button class="btn btn-danger px-4" onclick="submitModalStatusUpdate()">Cập nhật</button>
                         </div>
                     }
                 </div>

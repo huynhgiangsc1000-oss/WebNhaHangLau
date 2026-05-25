@@ -38,52 +38,59 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         /// Xử lý khi khách quét mã QR hoặc nhấn chọn bàn
         /// </summary>
         [HttpGet]
-        [HttpGet]
-        public async Task<IActionResult> AccessTable(int id)
-        {
-            if (!User.Identity.IsAuthenticated)
-            {
-                string returnUrl = Url.Action("AccessTable", "Table", new { area = "Customer", id = id });
-                return RedirectToAction("Login", "Account", new { area = "Customer", returnUrl = returnUrl });
-            }
 
-            var user = await _userManager.GetUserAsync(User);
+        [HttpGet]
+        public async Task<IActionResult> AccessTable(int id, string checkInCode = null)
+        {
             var table = await _context.Tables.FindAsync(id);
             if (table == null) return NotFound();
 
             if (table.Status == "Occupied")
             {
+                // 1. Kiểm tra xem có đơn hàng nào đang hoạt động (đang ăn) tại bàn này không
                 var hasActiveOrder = await _context.Orders
-                    .AnyAsync(o => o.TableId == id && o.UserId == user.Id && (o.Status == "Pending" || o.Status == "Processing"));
+                    .AnyAsync(o => o.TableId == id && o.Status != "Completed" && o.Status != "Cancelled");
 
-                var hasCheckedInBooking = await _context.Bookings
-                    .AnyAsync(b => b.TableId == id && b.UserId == user.Id && b.Status == "CheckedIn");
+                // 2. Kiểm tra xem bàn này có phải là bàn vừa được nhân viên check-in cho khách vãng lai không (UserId == null)
+                var isGuestBookingCheckedIn = await _context.Bookings
+                    .AnyAsync(b => b.TableId == id && b.Status == "CheckedIn" && b.UserId == null);
 
-                // Nếu bàn đỏ nhưng không phải của mình
-                if (!hasActiveOrder && !hasCheckedInBooking)
+                // 3. LOGIC LỌC TRUY CẬP:
+                // Nếu khách click trên sơ đồ (checkInCode rỗng)
+                if (string.IsNullOrEmpty(checkInCode))
                 {
-                    TempData["Error"] = "Bàn này đang được phục vụ khách khác!";
-                    return RedirectToAction(nameof(Index));
+                    // Nếu bàn đã có hóa đơn đang chạy (khách khác đang ăn) 
+                    // HOẶC bàn này KHÔNG CÓ đơn check-in vãng lai nào chờ sẵn thì mới chặn
+                    if (hasActiveOrder && !isGuestBookingCheckedIn)
+                    {
+                        TempData["Error"] = "Bàn này hiện đang có khách. Vui lòng liên hệ nhân viên!";
+                        return RedirectToAction("Index");
+                    }
+                }
+                else // Nếu khách truy cập thông qua đường dẫn link QR từ Email (Có kèm checkInCode)
+                {
+                    var isCorrectBooking = await _context.Bookings
+                        .AnyAsync(b => b.TableId == id && b.CheckInCode == checkInCode && b.Status == "CheckedIn");
+
+                    if (!isCorrectBooking)
+                    {
+                        TempData["Error"] = "Mã xác nhận bàn ăn không hợp lệ hoặc đã hết hạn!";
+                        return RedirectToAction("Index");
+                    }
+
+                    // Lưu mã checkInCode vào Session dự phòng
+                    HttpContext.Session.SetString("GuestCheckInCode", checkInCode);
                 }
             }
 
-            // Khách vãng lai quét bàn trống hoặc khách đặt quét bàn Reserved
-            if (table.Status == "Empty" || table.Status == "Reserved")
-            {
-                table.Status = "Occupied";
-                _context.Update(table);
-                await _context.SaveChangesAsync();
-            }
-
-            // Thiết lập Session & Cookie
+            // Cấp quyền tiếp cận bàn tạm thời (Lưu Session & Cookie)
             HttpContext.Session.SetString("TableId", id.ToString());
             Response.Cookies.Append("SavedTableId", id.ToString(), new CookieOptions
             {
-                Expires = DateTimeOffset.Now.AddDays(1),
-                HttpOnly = true,
-                IsEssential = true
+                Expires = DateTimeOffset.Now.AddDays(1)
             });
 
+            // Chuyển hướng sang trang Menu
             return RedirectToAction("Index", "Menu");
         }
         public async Task<IActionResult> CurrentTable()

@@ -79,30 +79,42 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         }
 
         [HttpPost]
+        [HttpPost]
         public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
-            if (ModelState.IsValid)
+
+            // Nếu dữ liệu form không hợp lệ, trả về trang cũ
+            if (!ModelState.IsValid) return View(model);
+
+            // 1. Tìm user bằng số điện thoại
+            var user = await _userManager.FindByNameAsync(model.Phone);
+
+            if (user != null)
             {
+                // 2. Kiểm tra trạng thái khóa
+                if (user.IsLocked)
+                {
+                    ModelState.AddModelError("", "Tài khoản của bạn đã bị quản trị viên khóa.");
+                    return View(model);
+                }
+
+                // 3. Đăng nhập
                 var result = await _signInManager.PasswordSignInAsync(model.Phone, model.Password, model.RememberMe, false);
 
                 if (result.Succeeded)
                 {
-                    // Khôi phục session bàn từ Cookie (nếu có)
+                    // Khôi phục session bàn
                     var tableIdFromCookie = Request.Cookies["SavedTableId"];
                     if (!string.IsNullOrEmpty(tableIdFromCookie))
                     {
                         HttpContext.Session.SetString("TableId", tableIdFromCookie);
                     }
 
-                    // --- BỔ SUNG: Đồng bộ đơn đặt bàn cho khách vừa Đăng nhập tại bàn ---
-                    var user = await _userManager.FindByNameAsync(model.Phone);
-                    if (user != null)
-                    {
-                        await LinkGuestBookingToUserAsync(user.Id);
-                    }
+                    // Đồng bộ đơn đặt bàn
+                    await LinkGuestBookingToUserAsync(user.Id);
 
-                    // Điều hướng
+                    // 4. Điều hướng
                     if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
                         return Redirect(returnUrl);
@@ -114,8 +126,10 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
                     return RedirectToAction("Index", "Home", new { area = "Customer" });
                 }
-                ModelState.AddModelError("", "Số điện thoại hoặc mật khẩu không đúng.");
             }
+
+            // Nếu user null hoặc sai mật khẩu
+            ModelState.AddModelError("", "Số điện thoại hoặc mật khẩu không đúng.");
             return View(model);
         }
 

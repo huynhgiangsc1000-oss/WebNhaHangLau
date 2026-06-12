@@ -1,46 +1,125 @@
 ﻿@model IEnumerable<DoAnCoSo.Models.Product>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
 <div class="container-fluid pt-4">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h5 class="text-danger fw-bold m-0">DANH SÁCH MÓN ĂN</h5>
-            <a asp-action="Create" class="btn btn-danger btn-sm">Thêm món mới</a>
-        </div>
-        <div class="card-body">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Hình ảnh</th>
-                        <th>Tên món</th>
-                        <th>Loại</th>
-                        <th>Giá bán</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-dark">Quản lý thực đơn</h4>
+        <a asp-action="Create" class="btn btn-primary rounded-pill px-4"><i class="bi bi-plus-lg"></i> Thêm món mới</a>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+            <form asp-action="Index" method="get" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="search" value="@ViewBag.Search" class="form-control rounded-pill" placeholder="Tìm kiếm tên món hoặc loại...">
+                    <button type="submit" class="btn btn-primary rounded-pill ms-2 px-4">Tìm kiếm</button>
+                    @if (!string.IsNullOrEmpty(ViewBag.Search))
                     {
-                        <tr>
-                            <td>
-                                <img src="~/images/@item.ImagePath" style="width:60px; height:60px; object-fit:cover; border-radius:8px;" />
-                            </td>
-                            <td class="fw-bold">@item.ProductName</td>
-                            <td>@item.Category?.CategoryName</td>
-                            <td class="text-danger">@item.Price.ToString("N0")đ</td>
-                            <td>
-                                <span class="badge @(item.IsAvailable ? "bg-success" : "bg-secondary")">
-                                    @(item.IsAvailable ? "Đang bán" : "Hết hàng")
-                                </span>
-                            </td>
-                            <td>
-                                <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-primary">Sửa</a>
-                                <a asp-action="Delete" asp-route-id="@item.ProductId" onclick="return confirm('Xóa món này?')" class="btn btn-sm btn-outline-danger">Xóa</a>
-                            </td>
-                        </tr>
+                        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill ms-2">Xóa lọc</a>
                     }
-                </tbody>
-            </table>
+                </div>
+            </form>
+
+            <div class="table-responsive" style="min-height: 400px;">
+                <table class="table table-hover align-middle" id="productTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Hình ảnh</th>
+                            <th>Tên món</th>
+                            <th>Loại</th>
+                            <th>Giá bán</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td><img src="~/images/@item.ImagePath" class="rounded" style="width: 50px; height: 50px; object-fit:cover;"></td>
+                                <td class="fw-bold">@item.ProductName</td>
+                                <td><span class="badge bg-light text-dark border">@item.Category?.CategoryName</span></td>
+                                <td class="text-danger fw-bold">@item.Price.ToString("N0")đ</td>
+                                <td>
+                                    <span class="badge @(item.IsAvailable ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") rounded-pill">
+                                        @(item.IsAvailable ? "Đang bán" : "Hết hàng")
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-primary border-0"><i class="bi bi-pencil"></i></a>
+                                    <button onclick="deleteProduct(@item.ProductId)" class="btn btn-sm btn-outline-danger border-0"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    @for (int i = 1; i <= (int)ViewBag.TotalPages; i++)
+                    {
+                        <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="Index"
+                               asp-route-page="@i"
+                               asp-route-search="@ViewBag.Search">@i</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
         </div>
     </div>
 </div>
+
+<form id="deleteForm" method="post" asp-action="Delete" style="display:none;">
+    <input type="hidden" name="id" id="deleteId" />
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // 1. Xử lý các thông báo có biến từ Controller (Success/Warning)
+    @if (TempData["Success"] != null)
+    {
+            <text>
+            Swal.fire({ icon: 'success', title: 'Thành công', text: '@TempData["Success"]', timer: 2000, showConfirmButton: false });
+            </text>
+    }
+    @if (TempData["Warning"] != null)
+    {
+            <text>
+            Swal.fire({ icon: 'warning', title: 'Thông báo', text: '@TempData["Warning"]' });
+            </text>
+    }
+
+    // 2. Xử lý thông báo lỗi bằng "tín hiệu" (Fix lỗi tiếng Việt)
+    @if (TempData["Status"]?.ToString() == "error_order")
+    {
+            <text>
+            Swal.fire({
+                icon: 'error',
+                title: 'Không thể xóa',
+                text: 'Không thể xóa món ăn này vì đã có trong lịch sử đơn hàng!'
+            });
+            </text>
+    }
+
+    // 3. Hàm xóa
+    function deleteProduct(id) {
+        Swal.fire({
+            title: 'Bạn chắc chắn muốn xóa?',
+            text: "Hành động này không thể hoàn tác!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Xóa ngay',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('deleteId').value = id;
+                document.getElementById('deleteForm').submit();
+            }
+        });
+    }
+</script>

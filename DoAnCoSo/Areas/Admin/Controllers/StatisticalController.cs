@@ -16,17 +16,35 @@ namespace DoAnCoSo.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> Index(string fromDate, string toDate, string sessionFilter = "")
+        public async Task<IActionResult> Index(string fromDate, string toDate, string sessionFilter = "", string preset = "")
         {
             IFormatProvider culture = new CultureInfo("vi-VN");
             DateTime start, end;
 
-            if (!DateTime.TryParseExact(fromDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out start)) start = DateTime.Today.AddDays(-30);
-            if (!DateTime.TryParseExact(toDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out end)) end = DateTime.Today;
+            // Logic chọn nhanh (Preset)
+            if (!string.IsNullOrEmpty(preset))
+            {
+                switch (preset)
+                {
+                    case "today": start = end = DateTime.Today; break;
+                    case "thisMonth": start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1); end = DateTime.Today; break;
+                    case "lastMonth":
+                        start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-1);
+                        end = start.AddMonths(1).AddDays(-1);
+                        break;
+                    default: start = DateTime.Today.AddDays(-30); end = DateTime.Today; break;
+                }
+            }
+            else
+            {
+                if (!DateTime.TryParseExact(fromDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out start)) start = DateTime.Today.AddDays(-30);
+                if (!DateTime.TryParseExact(toDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out end)) end = DateTime.Today;
+            }
 
             ViewBag.FromDate = start.ToString("dd/MM/yyyy");
             ViewBag.ToDate = end.ToString("dd/MM/yyyy");
             ViewBag.CurrentSession = sessionFilter;
+            ViewBag.CurrentPreset = preset;
 
             DateTime endDateTime = end.AddDays(1).AddSeconds(-1);
 
@@ -59,7 +77,7 @@ namespace DoAnCoSo.Controllers
             var validOrders = filteredOrders.Where(o => o.Status == "Completed" || o.Status == "Paid").ToList();
 
             // 2. Gán dữ liệu tổng quát (Dùng trực tiếp TotalAmount từ Model)
-            ViewBag.TotalRevenue = validOrders.Sum(o => o.TotalAmount);
+            ViewBag.TotalRevenue = validOrders.Sum(o => o.TotalAmount - o.DiscountAmount);
             ViewBag.TotalOrders = filteredOrders.Count();
             ViewBag.SuccessOrders = validOrders.Count;
             ViewBag.CancelledOrders = filteredOrders.Count(o => o.Status == "Cancelled");

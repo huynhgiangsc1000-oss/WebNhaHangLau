@@ -4,176 +4,95 @@
     ViewData["Title"] = "Quản lý khách hàng";
 }
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
 <div class="container-fluid pt-4">
-    <div class="row mb-3">
-        <div class="col-md-8">
-            <h4 class="fw-bold text-dark"><i class="bi bi-people-fill me-2 text-primary"></i>QUẢN LÝ KHÁCH HÀNG</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-dark m-0">Quản lý khách hàng</h4>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
+                <ol class="breadcrumb m-0">
                     <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Khách hàng</li>
+                    <li class="breadcrumb-item active">Danh sách khách hàng</li>
                 </ol>
             </nav>
         </div>
-        <div class="col-md-4 text-end">
-            <span class="badge bg-white text-dark border p-2 shadow-sm">
-                <i class="bi bi-person-check me-1 text-success"></i> Tổng cộng: @Model.Count() khách hàng
-            </span>
+        <div class="badge bg-primary bg-opacity-10 text-primary p-2 px-3 rounded-pill">
+            <i class="bi bi-people-fill me-1"></i> Tổng: @Model.Count() người dùng
         </div>
     </div>
 
-    <div class="card shadow-sm border-0" style="border-radius: 12px;">
-        <div class="card-body">
-
-            @if (TempData["Success"] != null)
-            {
-                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-                    <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            }
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            }
-
-            <div class="bg-light p-3 rounded-3 mb-4">
-                <form asp-action="Index" method="get" class="row g-2 align-items-center">
-                    <div class="col-md-4">
-                        <div class="input-group">
-                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" name="searchString" value="@ViewBag.CurrentSearch"
-                                   class="form-control border-start-0 ps-0" placeholder="Tìm tên hoặc số điện thoại...">
-                        </div>
-                    </div>
-
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+            <div class="bg-light p-3 rounded-4 mb-4">
+                <form asp-action="Index" method="get" class="row g-3 align-items-end">
                     <div class="col-md-3">
-                        <select name="rankId" class="form-select" asp-items="ViewBag.Ranks">
-                            <option value="">-- Tất cả các hạng --</option>
+                        <label class="small text-muted fw-bold">Tìm kiếm</label>
+                        <input type="text" name="searchString" value="@ViewBag.SearchString" class="form-control rounded-3" placeholder="Tên hoặc SĐT...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small text-muted fw-bold">Hạng thành viên</label>
+                        <select name="rankId" class="form-select rounded-3" asp-items="ViewBag.Ranks">
+                            <option value="">-- Tất cả --</option>
                         </select>
                     </div>
-
-                    <div class="col-md-5 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-filter me-1"></i>Lọc
+                    <div class="col-md-6 d-flex gap-2 justify-content-md-end">
+                        <button type="submit" class="btn btn-primary rounded-3 px-4"><i class="bi bi-search me-1"></i>Lọc</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary rounded-3"><i class="bi bi-arrow-counterclockwise"></i></a>
+                        <button type="button" onclick="confirmScan()" class="btn btn-warning fw-bold rounded-3">
+                            <i class="bi bi-magic me-1"></i>QUÉT HẠNG
                         </button>
-                        <a asp-action="Index" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                        </a>
-
-                        <div class="ms-auto">
-                            <form asp-action="UpdateAllRanks" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-warning text-dark fw-bold"
-                                        onclick="return confirm('Hệ thống sẽ dựa trên điểm để cập nhật lại toàn bộ hạng thành viên. Tiếp tục?')">
-                                    <i class="bi bi-magic me-1"></i>QUÉT HẠNG
-                                </button>
-                            </form>
-                        </div>
                     </div>
                 </form>
             </div>
 
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
-                    <thead class="table-light text-secondary">
+                    <thead class="text-secondary border-bottom-0">
                         <tr>
-                            <th style="width: 25%">Khách hàng</th>
-                            <th>Số điện thoại</th>
-                            <th>
-                                <a asp-action="Index" asp-route-sortOrder="@ViewBag.PointSortParm" class="text-decoration-none text-dark">
-                                    Điểm tích lũy
-                                    @if (ViewBag.CurrentSort == "Points" || ViewBag.CurrentSort == "points_desc")
-                                    {
-                                        <i class="bi bi-sort-numeric-down-alt text-primary"></i>
-                                    }
-                                    else
-                                    {
-                                        <i class="bi bi-arrow-down-up small text-muted"></i>
-                                    }
-                                </a>
-                            </th>
+                            <th class="ps-3">Khách hàng</th>
+                            <th>Liên hệ</th>
+                            <th>Điểm tích lũy</th>
                             <th>Hạng</th>
-                            <th>
-                                <a asp-action="Index" asp-route-sortOrder="@ViewBag.DateSortParm" class="text-decoration-none text-dark">
-                                    Ngày tham gia
-                                    @if (string.IsNullOrEmpty(ViewBag.CurrentSort))
-                                    {
-                                        <i class="bi bi-sort-down text-primary"></i>
-                                    }
-                                    else
-                                    {
-                                        <i class="bi bi-arrow-down-up small text-muted"></i>
-                                    }
-                                </a>
-                            </th>
-                            <th class="text-end" style="width: 15%">Hành động</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model)
                         {
                             <tr>
-                                <td>
+                                <td class="ps-3">
                                     <div class="d-flex align-items-center">
-                                        <div class="avatar-sm me-3 bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                                        <div class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold me-3" style="width: 40px; height: 40px;">
                                             @item.FullName.Substring(0, 1).ToUpper()
                                         </div>
                                         <div>
                                             <div class="fw-bold text-dark">@item.FullName</div>
-                                            <small class="text-muted">#@item.Id</small>
+                                            <small class="text-muted">ID: @item.Id</small>
                                         </div>
                                     </div>
                                 </td>
+                                <td><i class="bi bi-telephone text-muted me-1"></i>@item.PhoneNumber</td>
+                                <td><span class="fw-bold text-dark">@item.Points.ToString("N0")</span></td>
                                 <td>
-                                    <span class="text-muted"><i class="bi bi-telephone me-1"></i>@item.PhoneNumber</span>
+                                    <span class="badge @(item.Rank?.RankName == "Vàng" ? "bg-warning text-dark" : "bg-light text-dark border") rounded-pill">
+                                        @(item.Rank?.RankName ?? "Chưa có")
+                                    </span>
                                 </td>
                                 <td>
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-coin text-warning me-2 fs-5"></i>
-                                        <span class="fw-bold">@item.Points.ToString("N0")</span>
-                                    </div>
+                                    <form asp-action="ToggleLock" asp-route-id="@item.Id" method="post" id="lockForm_@item.Id">
+                                        <button type="button" onclick="confirmLock(@item.Id, @item.IsLocked.ToString().ToLower())"
+                                                class="btn btn-sm @(item.IsLocked ? "btn-danger" : "btn-outline-warning")">
+                                            @(item.IsLocked ? "Đã khóa" : "Hoạt động")
+                                        </button>
+                                    </form>
                                 </td>
-                                <td>
-                                    @if (item.Rank != null)
-                                    {
-                                        var badgeClass = item.Rank.RankName switch
-                                        {
-                                            "Vàng" => "bg-warning text-dark",
-                                            "Bạc" => "bg-info text-dark",
-                                            "Đồng" => "bg-secondary text-white",
-                                            _ => "bg-light text-dark border"
-                                        };
-
-                                        <span class="badge @badgeClass shadow-sm" style="min-width: 80px;">
-                                            <i class="bi bi-trophy-fill me-1"></i>@item.Rank.RankName
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-light text-muted border">Chưa có hạng</span>
-                                    }
-                                </td>
-                                <td>
-                                    <small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy")</small>
-                                </td>
-                                <td class="text-end">
-                                    <div class="btn-group" role="group">
-                                        <a asp-action="Details" asp-route-id="@item.Id"
-                                           class="btn btn-sm btn-outline-info" title="Xem lịch sử">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <a asp-action="Edit" asp-route-id="@item.Id"
-                                           class="btn btn-sm btn-outline-primary" title="Sửa thông tin">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Xóa khách hàng này?')">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-1">
+                                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-icon btn-sm btn-light"><i class="bi bi-eye"></i></a>
+                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-icon btn-sm btn-light text-primary"><i class="bi bi-pencil"></i></a>
+                                        <button onclick="deleteUser(@item.Id)" class="btn btn-icon btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
                                     </div>
                                 </td>
                             </tr>
@@ -182,55 +101,100 @@
                 </table>
             </div>
 
-            @if (!Model.Any())
-            {
-                <div class="text-center py-5">
-                    <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="opacity-25 mb-3">
-                    <p class="text-muted">Không tìm thấy khách hàng nào khớp với yêu cầu.</p>
-                </div>
-            }
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                    {
+                        <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="Index"
+                               asp-route-page="@i"
+                               asp-route-searchString="@ViewBag.SearchString"
+                               asp-route-rankId="@ViewBag.RankId">@i</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
         </div>
     </div>
 </div>
 
-<style>
-    /* Làm đẹp giao diện bảng */
-    .table thead th {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 700;
-        padding: 15px 10px;
-        border-bottom: 2px solid #f8f9fa;
+<form id="deleteForm" method="post" asp-action="Delete" style="display:none;"><input type="hidden" name="id" id="deleteId" /></form>
+<form id="scanForm" method="post" asp-action="UpdateAllRanks" style="display:none;"></form>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // 1. TỰ ĐỘNG HIỂN THỊ THÔNG BÁO TỪ CONTROLLER
+       document.addEventListener("DOMContentLoaded", function () {
+           @if (TempData["Warning"] != null)
+           {
+                   <text>
+                   Swal.fire({
+                       icon: 'warning',
+                       title: 'Thông báo', // Đổi tiêu đề thành Thông báo
+                       // Sử dụng @Json.Serialize để tránh lỗi font chữ
+                       text: @Json.Serialize(TempData["Warning"]),
+                       confirmButtonColor: '#f39c12'
+                   });
+                   </text>
+           }
+
+           // Làm tương tự với TempData["Success"]
+           @if (TempData["Success"] != null)
+           {
+                   <text>
+                   Swal.fire({
+                       icon: 'success',
+                       title: 'Thành công',
+                       text: @Json.Serialize(TempData["Success"]),
+                       timer: 2000,
+                       showConfirmButton: false
+                   });
+                   </text>
+           }
+       });
+    // 2. HÀM XÁC NHẬN CẬP NHẬT HẠNG
+    function confirmScan() {
+        Swal.fire({
+            title: 'Cập nhật hạng?',
+            text: "Hệ thống sẽ tính lại hạng cho toàn bộ khách hàng.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Tiến hành'
+        }).then((result) => {
+            if (result.isConfirmed) { document.getElementById('scanForm').submit(); }
+        });
     }
 
-    .table tbody td {
-        padding: 12px 10px;
-        border-bottom: 1px solid #f8f9fa;
+    // 3. HÀM XÁC NHẬN KHÓA/MỞ KHÓA
+    function confirmLock(id, isLocked) {
+        Swal.fire({
+            title: isLocked ? 'Mở khóa tài khoản?' : 'Khóa tài khoản?',
+            text: isLocked ? "Khách hàng sẽ có thể đăng nhập lại." : "Khách hàng sẽ không thể đăng nhập.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: isLocked ? '#28a745' : '#d33',
+            confirmButtonText: 'Đồng ý'
+        }).then((result) => {
+            if (result.isConfirmed) { document.getElementById('lockForm_' + id).submit(); }
+        });
     }
 
-    .avatar-sm {
-        font-size: 0.9rem;
+    // 4. HÀM XÁC NHẬN XÓA
+    function deleteUser(id) {
+        Swal.fire({
+            title: 'Xóa vĩnh viễn?',
+            text: "Hành động này không thể hoàn tác!",
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Xóa ngay'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('deleteId').value = id;
+                document.getElementById('deleteForm').submit();
+            }
+        });
     }
-
-    .btn-group .btn {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px !important;
-        margin-left: 3px;
-    }
-
-    .badge {
-        font-size: 0.75rem;
-        padding: 0.6em 1em;
-        border-radius: 30px;
-    }
-
-    .input-group-text {
-        border-color: #dee2e6;
-    }
-
-    .form-control:focus, .form-select:focus {
-        box-shadow: none;
-        border-color: #0d6efd;
-    }
-</style>
+</script>

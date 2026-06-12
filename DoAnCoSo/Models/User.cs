@@ -12,7 +12,7 @@ namespace DoAnCoSo.Models
         public int Points { get; set; } = 0;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-
+        public bool IsLocked { get; set; } = false;
         // Liên kết hạng thành viên
         public int? RankId { get; set; }
         [ForeignKey("RankId")]

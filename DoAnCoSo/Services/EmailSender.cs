@@ -3,25 +3,21 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using Microsoft.AspNetCore.Identity.UI.Services; // Thêm thư viện này
 
 namespace DoAnCoSo.Services
 {
-    public class EmailSender
+    // Thêm ": IEmailSender" vào đây
+    public class EmailSender : IEmailSender
     {
         private readonly EmailSettings _emailSettings;
 
-        // Dùng IOptions để đọc cấu hình từ appsettings.json hoặc User Secrets
         public EmailSender(IOptions<EmailSettings> emailSettings)
         {
             _emailSettings = emailSettings.Value;
         }
 
-        /// <summary>
-        /// Hàm gửi Email chung
-        /// </summary>
-        /// <param name="email">Địa chỉ người nhận</param>
-        /// <param name="subject">Tiêu đề thư</param>
-        /// <param name="htmlMessage">Nội dung thư dạng HTML</param>
+        // Đảm bảo hàm này trùng tên với IEmailSender
         public async Task SendEmailAsync(string email, string subject, string htmlMessage)
         {
             var message = new MimeMessage();

@@ -93,7 +93,6 @@ body {
     min-height: 100vh;
 }
 
-/* Nhãn danh mục trong Sidebar */
 .nav-category {
     color: #6c757d;
     font-size: 0.75rem;
@@ -128,24 +127,21 @@ body {
         box-shadow: 0 4px 12px rgba(139, 0, 0, 0.2);
     }
 
-/* Header nội dung Admin */
 .admin-header {
     background: #fff;
     padding: 15px 30px;
     border-bottom: 1px solid #dee2e6;
-    margin: -25px -25px 25px -25px; /* Tràn lề để khớp với container */
+    margin: -25px -25px 25px -25px;
 }
 
-/* Sơ đồ bàn (CSS bổ sung từ yêu cầu trước của bạn) */
-/* --- CSS CHO SƠ ĐỒ BÀN (ADMIN) --- */
+/* --- SƠ ĐỒ BÀN (ADMIN) --- */
 .table-card {
     transition: all 0.3s ease;
     border-radius: 15px;
     border: 1px solid #eee;
-    min-height: 180px; /* Đảm bảo các ô cao bằng nhau */
+    min-height: 180px;
 }
 
-/* Màu cho bàn trống (Màu xanh) */
 .table-empty {
     background-color: #ebfbee !important;
     border-left: 5px solid #28a745 !important;
@@ -156,7 +152,6 @@ body {
         font-weight: bold;
     }
 
-/* Màu cho bàn đang có khách (Màu đỏ) */
 .table-occupied {
     background-color: #fff5f5 !important;
     border-left: 5px solid #dc3545 !important;
@@ -167,7 +162,6 @@ body {
         font-weight: bold;
     }
 
-/* Màu cho bàn đặt trước (Màu vàng) */
 .table-reserved {
     background-color: #fff9db !important;
     border-left: 5px solid #ffc107 !important;
@@ -178,7 +172,6 @@ body {
         font-weight: bold;
     }
 
-/* QR Code Container */
 .qr-container {
     background: white;
     padding: 10px;
@@ -187,4 +180,66 @@ body {
     align-items: center;
     justify-content: center;
     border: 1px dashed #ccc;
+}
+
+/* --- COMPONENT BỔ SUNG --- */
+.table-admin {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+}
+
+    .table-admin thead {
+        background-color: #f8f9fc;
+        color: #495057;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .table-admin th, .table-admin td {
+        padding: 15px !important;
+        vertical-align: middle !important;
+    }
+
+.btn-action-edit {
+    background: #e7f1ff;
+    color: #0d6efd;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 5px;
+}
+
+.btn-action-delete {
+    background: #fff1f0;
+    color: #dc3545;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 5px;
+}
+
+.badge-status {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-confirmed {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* Định dạng ảnh món ăn trong Modal (Để fix lỗi bạn hỏi) */
+.menu-item-row img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-right: 15px;
 }

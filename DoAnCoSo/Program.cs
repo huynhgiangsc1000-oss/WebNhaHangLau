@@ -2,6 +2,7 @@
 using DoAnCoSo.Models;
 using DoAnCoSo.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,7 +65,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 // --- 5. ĐĂNG KÝ EMAIL SERVICES 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-builder.Services.AddTransient<EmailSender>();
+builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 // --- 6. CẤU HÌNH VNPAY & SERVICES KHÁC ---
 builder.Services.AddHttpContextAccessor();

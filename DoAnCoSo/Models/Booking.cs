@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAnCoSo.Models
@@ -9,37 +11,60 @@ namespace DoAnCoSo.Models
         public int BookingId { get; set; }
 
         [Required(ErrorMessage = "Tên khách hàng không được để trống")]
-        public string FullName { get; set; }
+        [StringLength(100, ErrorMessage = "Tên không được vượt quá 100 ký tự")]
+        [Display(Name = "Họ và tên")]
+        public string FullName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Số điện thoại không được để trống")]
         [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
-        public string PhoneNumber { get; set; }
+        [Display(Name = "Số điện thoại")]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập email")]
+        [EmailAddress(ErrorMessage = "Địa chỉ email không hợp lệ")]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng chọn thời gian")]
-        public DateTime BookingDate { get; set; } // Ngày giờ khách hẹn đến
+        [DataType(DataType.DateTime)]
+        [Display(Name = "Thời gian đặt")]
+        public DateTime BookingDate { get; set; } = DateTime.Now;
 
+        [Required(ErrorMessage = "Vui lòng nhập số lượng khách")]
         [Range(1, 50, ErrorMessage = "Số lượng khách từ 1-50 người")]
+        [Display(Name = "Số lượng khách")]
         public int GuestCount { get; set; }
 
+        [Display(Name = "Mã giảm giá")]
+        [StringLength(20, ErrorMessage = "Mã giảm giá không hợp lệ")]
+        public string? DiscountCode { get; set; }
+
+        [Display(Name = "Ghi chú")]
         public string? Note { get; set; }
 
-        // Trạng thái đơn đặt bàn: Pending (Chờ), Confirmed (Đã xác nhận), Cancelled (Hủy)
+        [Display(Name = "Trạng thái")]
         public string Status { get; set; } = "Pending";
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        [Display(Name = "Mã xác nhận")]
         public string? CheckInCode { get; set; }
 
-        public string? Email { get; set; }
-
-        // Liên kết với Table (Sau khi Admin chọn bàn cho khách)[cite: 7]
+        // Liên kết với Table
         public int? TableId { get; set; }
         [ForeignKey("TableId")]
         public virtual Table? Table { get; set; }
 
-        // Liên kết với User (nếu khách đã đăng nhập)[cite: 8]
+        // Liên kết với User
         public int? UserId { get; set; }
         [ForeignKey("UserId")]
         public virtual User? User { get; set; }
+
+        // Danh sách các món đã đặt trước
         public List<PreOrderItem> PreOrderItems { get; set; } = new List<PreOrderItem>();
+
+        // Thuộc tính tính toán tạm thời (không lưu vào DB)
+        [NotMapped]
+        public decimal TotalAmount { get; set; }
     }
 }

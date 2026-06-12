@@ -1,14 +1,19 @@
-﻿namespace DoAnCoSo.Models
-{
-    public class PreOrderItem
-    {
-        public int Id { get; set; }
-        public int BookingId { get; set; }
-        public int ProductId { get; set; }
-        public int Quantity { get; set; }
+﻿using DoAnCoSo.Models;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-        // Navigation properties (giúp EF Core nhận diện quan hệ)
-        public Booking Booking { get; set; }
-        public Product Product { get; set; }
-    }
+public class PreOrderItem
+{
+    [Key]
+    public int Id { get; set; }
+    public int BookingId { get; set; }
+    [ForeignKey("BookingId")]
+    public virtual Booking? Booking { get; set; }
+
+    public int ProductId { get; set; }
+    [ForeignKey("ProductId")]
+    public virtual Product? Product { get; set; }
+
+    public int Quantity { get; set; }
+    public decimal PriceAtOrder { get; set; } // Giá chốt tại lúc đặt
 }

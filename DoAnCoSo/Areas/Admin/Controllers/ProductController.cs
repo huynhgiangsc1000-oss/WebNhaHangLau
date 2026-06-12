@@ -21,15 +21,32 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         }
 
         // 1. HIỂN THỊ DANH SÁCH SẢN PHẨM
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int page = 1, string search = "")
         {
-            var products = await _context.Products
-                .Include(p => p.Category)
-                .OrderByDescending(p => p.ProductId)
-                .ToListAsync();
+            int pageSize = 10;
+            // Tạo truy vấn cơ sở
+            var query = _context.Products.Include(p => p.Category).AsQueryable();
+
+            // Nếu có từ khóa tìm kiếm, lọc dữ liệu trước khi đếm và phân trang
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(p => p.ProductName.Contains(search) || p.Category.CategoryName.Contains(search));
+            }
+
+            var totalProducts = await query.CountAsync();
+
+            // Lấy dữ liệu đã lọc và đã phân trang
+            var products = await query.OrderByDescending(p => p.ProductId)
+                                      .Skip((page - 1) * pageSize)
+                                      .Take(pageSize)
+                                      .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+            ViewBag.Search = search; // Giữ lại từ khóa để hiển thị trên ô input
+
             return View(products);
         }
-
         // 2. TẠO MỚI SẢN PHẨM (GET)
         public IActionResult Create()
         {
@@ -139,12 +156,12 @@ namespace DoAnCoSo.Areas.Admin.Controllers
             {
                 // Kiểm tra xem món ăn này có trong đơn hàng nào không (Ràng buộc dữ liệu)
                 bool isInOrder = await _context.OrderDetails.AnyAsync(od => od.ProductId == id);
+                // Trong Controller (Action DeleteConfirmed)
                 if (isInOrder)
                 {
-                    TempData["Error"] = "Không thể xóa món ăn này vì đã có trong lịch sử đơn hàng!";
+                    TempData["Status"] = "error_order";
                     return RedirectToAction(nameof(Index));
                 }
-
                 DeletePhysicalFile(product.ImagePath); // Xóa ảnh thực tế
                 _context.Products.Remove(product);
                 await _context.SaveChangesAsync();

@@ -24,88 +24,77 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         }
 
         // 1. DANH SÁCH KHÁCH HÀNG (Loại bỏ Admin và Staff)
-        public async Task<IActionResult> Index(string searchString, int? rankId)
+        // Thêm vào Index trong UserController
+        public async Task<IActionResult> Index(string searchString, int? rankId, int page = 1)
         {
-            // Lấy ID của các vai trò cần loại bỏ
-            var adminRole = await _roleManager.FindByNameAsync("Admin");
-            var staffRole = await _roleManager.FindByNameAsync("Staff");
-
-            var adminId = adminRole?.Id;
-            var staffId = staffRole?.Id;
-
-            // Truy vấn: Lấy những User KHÔNG nằm trong bảng UserRoles với RoleId là Admin hoặc Staff
+            int pageSize = 10; // Thay đổi tùy số lượng bạn muốn hiện mỗi trang
             var query = _context.Users.Include(u => u.Rank).AsQueryable();
 
-            if (adminId.HasValue)
-                query = query.Where(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == adminId));
-
-            if (staffId.HasValue)
-                query = query.Where(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == staffId));
-
-            // Tìm kiếm theo tên hoặc SĐT
+            // Lọc tìm kiếm và hạng (như cũ)
             if (!string.IsNullOrEmpty(searchString))
-            {
                 query = query.Where(u => u.FullName.Contains(searchString) || u.PhoneNumber.Contains(searchString));
-            }
-
-            // Lọc theo hạng
             if (rankId.HasValue)
-            {
                 query = query.Where(u => u.RankId == rankId);
-            }
 
-            var customers = await query.OrderByDescending(u => u.Points).ToListAsync();
+            int totalItems = await query.CountAsync();
+            var customers = await query.OrderByDescending(u => u.Points)
+                                       .Skip((page - 1) * pageSize)
+                                       .Take(pageSize)
+                                       .ToListAsync();
 
-            ViewBag.Ranks = new SelectList(_context.Ranks, "RankId", "RankName");
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            ViewBag.SearchString = searchString;
+            ViewBag.RankId = rankId;
+            ViewBag.Ranks = new SelectList(_context.Ranks, "RankId", "RankName", rankId);
+
             return View(customers);
         }
 
-        // 2. CHI TIẾT KHÁCH HÀNG (Lịch sử giao dịch & Thống kê)
-        public async Task<IActionResult> Details(int id)
+        // Thêm hàm Khóa/Mở khóa
+        [HttpPost]
+        [HttpPost]
+        public async Task<IActionResult> ToggleLock(int id)
         {
+            var user = await _context.Users.FindAsync(id);
+            if (user != null)
+            {
+                user.IsLocked = !user.IsLocked;
+                await _context.SaveChangesAsync();
+                TempData["Success"] = user.IsLocked ? "Đã khóa tài khoản." : "Đã mở khóa tài khoản.";
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
+        // 2. CHI TIẾT KHÁCH HÀNG (Lịch sử giao dịch & Thống kê)
+        public async Task<IActionResult> Details(int id, int page = 1)
+        {
+            int pageSize = 10;
+
+            // Lấy thông tin user kèm hạng thành viên
             var user = await _context.Users
                 .Include(u => u.Rank)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null) return NotFound();
 
-            // Lấy lịch sử đơn hàng
-            var orders = await _context.Orders
-                 .Include(o => o.Promotion) // Thêm để xem khách hay dùng mã nào
-                 .Where(o => o.UserId == id)
-                 .OrderByDescending(o => o.OrderDate)
-                 .ToListAsync();
+            // Lấy danh sách đơn hàng của khách, bao gồm cả chi tiết món ăn
+            var query = _context.Orders
+                .Include(o => o.OrderDetails) // Lấy thông tin món ăn trong đơn
+                .ThenInclude(od => od.Product)
+                .Where(o => o.UserId == id)
+                .OrderByDescending(o => o.OrderDate);
 
-            // Thống kê doanh thu từ khách này (chỉ tính đơn đã thanh toán)
-            ViewBag.TotalSpent = orders.Where(o => o.Status == "Paid").Sum(o => o.TotalAmount);
-            ViewBag.OrderCount = orders.Count;
+            int totalCount = await query.CountAsync();
+            var orders = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
-            // Tìm món ăn khách thích nhất
-            var topProduct = await _context.OrderDetails
-                .Include(od => od.Order)
-                .Include(od => od.Product)
-                .Where(od => od.Order.UserId == id)
-                .GroupBy(od => od.Product.ProductName)
-                .Select(g => new { Name = g.Key, Count = g.Sum(x => x.Quantity) })
-                .OrderByDescending(x => x.Count)
-                .FirstOrDefaultAsync();
-
-            ViewBag.TopProduct = topProduct?.Name ?? "Chưa có dữ liệu";
             ViewBag.Orders = orders;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            ViewBag.UserId = id;
 
             return View(user);
         }
-
-        // 3. CHỈNH SỬA THÔNG TIN (Admin can thiệp điểm/hạng)
-        public async Task<IActionResult> Edit(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
-
-            ViewBag.RankId = new SelectList(_context.Set<Rank>(), "RankId", "RankName", user.RankId);
-            return View(user);
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(User updatedUser)
@@ -134,23 +123,17 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         public async Task<IActionResult> UpdateAllRanks()
         {
             var users = await _context.Users.ToListAsync();
-            // Lấy danh sách hạng sắp xếp theo điểm yêu cầu giảm dần
             var ranks = await _context.Set<Rank>().OrderByDescending(r => r.RequiredPoints).ToListAsync();
 
-            int count = 0;
-            foreach (var user in users)
+            foreach (var u in users)
             {
-                // Tìm hạng cao nhất mà user đạt đủ điểm
-                var matchedRank = ranks.FirstOrDefault(r => user.Points >= r.RequiredPoints);
-                if (matchedRank != null && user.RankId != matchedRank.RankId)
-                {
-                    user.RankId = matchedRank.RankId;
-                    count++;
-                }
+                var matchedRank = ranks.FirstOrDefault(r => u.Points >= r.RequiredPoints);
+                if (matchedRank != null && u.RankId != matchedRank.RankId)
+                    u.RankId = matchedRank.RankId;
             }
 
-            await _context.SaveChangesAsync();
-            TempData["Success"] = $"Đã kiểm tra và cập nhật hạng cho {count} khách hàng!";
+            await _context.SaveChangesAsync(); // Lưu 1 lần duy nhất cho toàn bộ danh sách
+            TempData["Success"] = "Đã cập nhật xong hạng cho tất cả khách hàng!";
             return RedirectToAction(nameof(Index));
         }
 
@@ -160,20 +143,23 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user != null)
-            {
-                // Ràng buộc: Không xóa nếu có đơn hàng
-                bool hasOrders = await _context.Orders.AnyAsync(o => o.UserId == id);
-                if (hasOrders)
-                {
-                    TempData["Error"] = "LỖI: Khách hàng đã có lịch sử đơn hàng, không thể xóa!";
-                    return RedirectToAction(nameof(Index));
-                }
+            if (user == null) return NotFound();
 
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Xóa tài khoản thành công.";
+            // Kiểm tra xem khách đã có đơn hàng nào chưa
+            bool hasOrders = await _context.Orders.AnyAsync(o => o.UserId == id);
+
+            // Trong UserController.cs
+            if (hasOrders)
+            {
+                // Đổi từ TempData["Error"] sang TempData["Warning"] để dễ phân loại
+                TempData["Warning"] = "Khách hàng này đã có lịch sử giao dịch, không thể xóa!";
+                return RedirectToAction(nameof(Index));
             }
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Đã xóa khách hàng thành công.";
             return RedirectToAction(nameof(Index));
         }
     }

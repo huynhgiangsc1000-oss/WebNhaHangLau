@@ -18,8 +18,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         // 1. HIỂN THỊ DANH SÁCH ĐƠN HÀNG PHÂN THEO BUỔI
         public async Task<IActionResult> Index(string status, string searchQuery, string startDate, string endDate, int page = 1)
         {
-            int pageSize = 15; // Thay đổi thành 15 đơn hàng mỗi trang theo ý bạn
-
+            int pageSize = 15;
             var query = _context.Orders
                 .Include(o => o.Table)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
@@ -27,37 +26,40 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
                 .AsQueryable();
 
-            // --- Các đoạn Filter (giữ nguyên logic của bạn) ---
-            if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
-            else query = query.Where(o => o.Status != "Completed" && o.Status != "Cancelled");
-
+            // TÌM KIẾM TOÀN CỤC (Global Search)
             if (!string.IsNullOrEmpty(searchQuery))
             {
                 string term = searchQuery.Trim().Replace("#", "");
-                if (int.TryParse(term, out int orderId)) query = query.Where(o => o.OrderId == orderId);
-                else query = query.Where(o => o.Table != null && o.Table.TableName.Contains(searchQuery));
+                if (int.TryParse(term, out int orderId))
+                {
+                    // Bỏ qua lọc trạng thái, tìm thẳng vào ID
+                    query = query.Where(o => o.OrderId == orderId);
+                }
+                else
+                {
+                    query = query.Where(o => o.Table != null && o.Table.TableName.Contains(searchQuery));
+                }
+            }
+            else
+            {
+                // Chỉ lọc trạng thái khi KHÔNG tìm kiếm mã đơn
+                if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
+                else query = query.Where(o => o.Status != "Completed" && o.Status != "Cancelled");
             }
 
+            // Lọc ngày tháng
             if (DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime start))
                 query = query.Where(o => o.OrderDate.Date >= start.Date);
             if (DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime end))
                 query = query.Where(o => o.OrderDate.Date <= end.Date);
-            // --------------------------------------------------
 
-            // 1. Lấy tổng số lượng đơn hàng để tính tổng trang
             var totalOrders = await query.CountAsync();
+            var pagedOrders = await query.OrderByDescending(o => o.OrderDate)
+                                         .Skip((page - 1) * pageSize)
+                                         .Take(pageSize)
+                                         .ToListAsync();
 
-            // 2. Phân trang: Bỏ qua (page-1)*pageSize và lấy pageSize đơn hàng
-            // Lưu ý: Phải OrderBy trước khi Skip/Take
-            var pagedOrders = await query
-                .OrderByDescending(o => o.OrderDate)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            // 3. Grouping trên tập dữ liệu đã được giới hạn (15 đơn)
-            var groupedOrders = pagedOrders.GroupBy(o => o.OrderDate.Date)
-                                           .OrderByDescending(g => g.Key);
+            var groupedOrders = pagedOrders.GroupBy(o => o.OrderDate.Date).OrderByDescending(g => g.Key);
 
             ViewBag.Status = status;
             ViewBag.SearchQuery = searchQuery;

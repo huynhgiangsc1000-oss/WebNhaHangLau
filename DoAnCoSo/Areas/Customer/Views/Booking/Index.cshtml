@@ -3,42 +3,177 @@
     ViewData["Title"] = "Đặt bàn trước";
 }
 
-<div class="container mt-5 mb-5">
-    <div class="card shadow-sm border-0 rounded-lg mx-auto" style="max-width: 800px;">
-        <div class="card-body p-4 p-md-5">
-            <h3 class="text-center text-danger fw-bold mb-4">ĐẶT BÀN TRỰC TUYẾN</h3>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-            <form asp-action="Create" method="post" class="needs-validation" novalidate>
+<style>
+    .mini-menu-wrapper {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease-out, opacity 0.3s ease-out;
+        opacity: 0;
+    }
+
+        .mini-menu-wrapper.show {
+            max-height: 1000px;
+            opacity: 1;
+        }
+
+    .mini-menu-scroll {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .menu-item-card:hover {
+        background-color: #fff5f5;
+    }
+
+    .qty-input {
+        width: 40px !important;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <div class="card shadow-lg border-0 rounded-4 mx-auto" style="max-width: 850px;">
+        <div class="card-body p-4 p-md-5">
+            <h3 class="text-center text-danger fw-bold mb-4"><i class="bi bi-calendar-check"></i> ĐẶT BÀN TRỰC TUYẾN</h3>
+
+            <form asp-area="Customer" asp-controller="Booking" asp-action="Create" method="post" id="bookingForm">
+                <div asp-validation-summary="All" class="text-danger small mb-3"></div>
+
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="FullName" class="form-label fw-bold">Họ và Tên</label>
-                        <input asp-for="FullName" class="form-control" placeholder="Nhập tên của bạn" required />
+                        <input asp-for="FullName" class="form-control rounded-pill" required />
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label asp-for="Email" class="form-label fw-bold">Email nhận mã</label>
-                        <input asp-for="Email" type="email" class="form-control" placeholder="example@gmail.com" required />
+                        <label asp-for="Email" class="form-label fw-bold">Email</label>
+                        <input asp-for="Email" class="form-control rounded-pill" required />
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label asp-for="PhoneNumber" class="form-label fw-bold">Số điện thoại</label>
-                    <input asp-for="PhoneNumber" class="form-control" placeholder="090x xxx xxx" required />
-                </div>
+
                 <div class="row">
-                    <div class="col-md-7 mb-3">
-                        <label class="form-label fw-bold">Ngày & Giờ đến</label>
-                        <input type="text" id="bookingDatePicker" name="BookingDate" class="form-control" placeholder="Chọn ngày giờ" required />
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="PhoneNumber" class="form-label fw-bold">Số điện thoại</label>
+                        <input asp-for="PhoneNumber" class="form-control rounded-pill" required />
                     </div>
-                    <div class="col-md-5 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label asp-for="GuestCount" class="form-label fw-bold">Số lượng khách</label>
-                        <input asp-for="GuestCount" type="number" class="form-control" min="1" value="2" required />
+                        <input asp-for="GuestCount" type="number" class="form-control rounded-pill" min="1" max="50" value="1" required />
                     </div>
                 </div>
+
                 <div class="mb-3">
-                    <label asp-for="Note" class="form-label fw-bold">Ghi chú</label>
-                    <textarea asp-for="Note" class="form-control" rows="2"></textarea>
+                    <label class="form-label fw-bold">Ngày & Giờ đến</label>
+                    <input type="text" id="bookingDatePicker" name="BookingDate" class="form-control rounded-pill" readonly required />
                 </div>
-                <button type="submit" class="btn btn-danger w-100 py-3 fw-bold shadow">GỬI YÊU CẦU ĐẶT BÀN</button>
+
+                <div class="mb-3">
+                    <label asp-for="DiscountCode" class="form-label fw-bold">Mã giảm giá</label>
+                    <input asp-for="DiscountCode" class="form-control rounded-pill" placeholder="Nhập mã (nếu có)" />
+                </div>
+
+                <div class="mb-4">
+                    <button type="button" id="toggleMenuBtn" class="btn btn-outline-danger w-100 rounded-pill fw-bold">
+                        <i class="bi bi-egg-fried"></i> CHỌN MÓN ĂN ĐẶT TRƯỚC (TÙY CHỌN)
+                    </button>
+
+                    <div id="miniMenuWrapper" class="mini-menu-wrapper border rounded-4 p-3 bg-light mt-3">
+                        <div class="d-flex gap-2 mb-3 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-danger active" onclick="filterMenu('all', this)">Tất cả</button>
+                            @foreach (var cat in (List<DoAnCoSo.Models.Category>)ViewBag.Categories)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="filterMenu('@cat.CategoryId', this)">@cat.CategoryName</button>
+                            }
+                        </div>
+                        <input type="text" id="menuSearch" class="form-control mb-3 rounded-pill" placeholder="🔍 Tìm kiếm món ăn..." onkeyup="searchMenu()">
+
+                        <div class="mini-menu-scroll row g-2" id="menuItemsGrid">
+                            @foreach (var p in (List<DoAnCoSo.Models.Product>)ViewBag.Products)
+                            {
+                                <div class="col-6 col-md-4 menu-item-card" data-category="@p.CategoryId" data-name="@p.ProductName.ToLower()" data-price="@p.Price">
+                                    <div class="card h-100 p-2 border-0 shadow-sm">
+                                        <img src="/images/@p.ImagePath"
+                                             class="rounded"
+                                             style="height: 80px; object-fit: cover; width: 100%;"
+                                             onerror="this.src='/images/default.jpg'" />
+                                            <h6 class="mb-0 fw-bold small">@p.ProductName</h6>
+                                            <small class="text-danger">@string.Format("{0:N0}", p.Price)đ</small>
+                                            <div class="input-group input-group-sm mt-1 justify-content-center">
+                                                <button type="button" class="btn btn-outline-secondary btn-minus" data-id="@p.ProductId">-</button>
+                                                <input type="text" class="form-control text-center qty-input" id="qty-@p.ProductId" value="0" readonly />
+                                                <button type="button" class="btn btn-outline-secondary btn-plus" data-id="@p.ProductId">+</button>
+                                                <input type="hidden" id="input-prod-@p.ProductId" name="SelectedItems[@p.ProductId]" value="0" />
+                                            </div>
+                                        </div>
+                                    </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger text-center fw-bold fs-5 mb-4 shadow-sm" id="totalAmountDisplay">
+                    Tổng tiền dự kiến: 0đ
+                </div>
+
+                <button type="submit" class="btn btn-danger w-100 py-3 rounded-pill fw-bold shadow">GỬI YÊU CẦU ĐẶT BÀN</button>
             </form>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            flatpickr("#bookingDatePicker", { enableTime: true, dateFormat: "Y-m-d H:i", minDate: "today" });
+            document.getElementById("toggleMenuBtn").addEventListener("click", () => document.getElementById("miniMenuWrapper").classList.toggle("show"));
+        });
+
+        function filterMenu(catId, btn) {
+            document.querySelectorAll('.btn-outline-danger').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.menu-item-card').forEach(item => {
+                item.style.display = (catId === 'all' || item.dataset.category === catId) ? 'block' : 'none';
+            });
+        }
+
+        function searchMenu() {
+            const val = document.getElementById("menuSearch").value.toLowerCase();
+            document.querySelectorAll('.menu-item-card').forEach(item => {
+                item.style.display = item.dataset.name.includes(val) ? 'block' : 'none';
+            });
+        }
+
+        document.querySelectorAll(".btn-plus, .btn-minus").forEach(btn => {
+            btn.addEventListener("click", function() {
+                const id = this.getAttribute("data-id");
+                const input = document.getElementById(`qty-${id}`);
+                const hidden = document.getElementById(`input-prod-${id}`);
+                let val = parseInt(input.value);
+                if (this.classList.contains("btn-plus")) val++;
+                else if (val > 0) val--;
+                input.value = val;
+                hidden.value = val;
+                updateSummary();
+            });
+        });
+
+        function updateSummary() {
+            let totalItems = 0;
+            let totalPrice = 0;
+            document.querySelectorAll('.menu-item-card').forEach(card => {
+                const qtyInput = card.querySelector('.qty-input');
+                const qty = parseInt(qtyInput.value);
+                const price = parseFloat(card.getAttribute('data-price'));
+                if (qty > 0) {
+                    totalItems += qty;
+                    totalPrice += (qty * price);
+                }
+            });
+            const btn = document.getElementById("toggleMenuBtn");
+            btn.innerHTML = totalItems > 0 ? `<i class="bi bi-egg-fried"></i> MÓN ĐÃ CHỌN: ${totalItems} MÓN` : `<i class="bi bi-egg-fried"></i> CHỌN MÓN ĂN ĐẶT TRƯỚC (TÙY CHỌN)`;
+            document.getElementById("totalAmountDisplay").innerText = "Tổng tiền dự kiến: " + totalPrice.toLocaleString('vi-VN') + "đ";
+        }
+    </script>
+}

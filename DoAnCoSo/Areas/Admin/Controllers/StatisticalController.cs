@@ -20,27 +20,32 @@ namespace DoAnCoSo.Controllers
         {
             IFormatProvider culture = new CultureInfo("vi-VN");
             DateTime start, end;
+            int year = DateTime.Today.Year;
 
-            // Logic chọn nhanh (Preset)
+            // 1. Xử lý logic chọn nhanh (Preset)
             if (!string.IsNullOrEmpty(preset))
             {
                 switch (preset)
                 {
                     case "today": start = end = DateTime.Today; break;
-                    case "thisMonth": start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1); end = DateTime.Today; break;
-                    case "lastMonth":
-                        start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-1);
-                        end = start.AddMonths(1).AddDays(-1);
-                        break;
+                    case "thisMonth": start = new DateTime(year, DateTime.Today.Month, 1); end = DateTime.Today; break;
+                    case "q1": start = new DateTime(year, 1, 1); end = new DateTime(year, 3, 31); break;
+                    case "q2": start = new DateTime(year, 4, 1); end = new DateTime(year, 6, 30); break;
+                    case "q3": start = new DateTime(year, 7, 1); end = new DateTime(year, 9, 30); break;
+                    case "q4": start = new DateTime(year, 10, 1); end = new DateTime(year, 12, 31); break;
                     default: start = DateTime.Today.AddDays(-30); end = DateTime.Today; break;
                 }
             }
             else
             {
-                if (!DateTime.TryParseExact(fromDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out start)) start = DateTime.Today.AddDays(-30);
-                if (!DateTime.TryParseExact(toDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out end)) end = DateTime.Today;
+                // Nếu không dùng preset, lấy từ input hoặc mặc định 30 ngày qua
+                if (!DateTime.TryParseExact(fromDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out start))
+                    start = DateTime.Today.AddDays(-30);
+                if (!DateTime.TryParseExact(toDate, "dd/MM/yyyy", culture, DateTimeStyles.None, out end))
+                    end = DateTime.Today;
             }
 
+            // Gán dữ liệu cho View
             ViewBag.FromDate = start.ToString("dd/MM/yyyy");
             ViewBag.ToDate = end.ToString("dd/MM/yyyy");
             ViewBag.CurrentSession = sessionFilter;
@@ -48,7 +53,7 @@ namespace DoAnCoSo.Controllers
 
             DateTime endDateTime = end.AddDays(1).AddSeconds(-1);
 
-            // 1. Lấy dữ liệu
+            // 2. Lấy dữ liệu từ Database
             var rawOrders = await _context.Orders
                 .Where(o => o.OrderDate >= start && o.OrderDate <= endDateTime)
                 .ToListAsync();
@@ -61,7 +66,7 @@ namespace DoAnCoSo.Controllers
             var filteredOrders = rawOrders.AsEnumerable();
             var filteredDetails = rawDetails.AsEnumerable();
 
-            // Lọc ca
+            // 3. Lọc theo ca làm việc
             if (!string.IsNullOrEmpty(sessionFilter))
             {
                 filteredOrders = sessionFilter switch
@@ -76,59 +81,54 @@ namespace DoAnCoSo.Controllers
 
             var validOrders = filteredOrders.Where(o => o.Status == "Completed" || o.Status == "Paid").ToList();
 
-            // 2. Gán dữ liệu tổng quát (Dùng trực tiếp TotalAmount từ Model)
+            // 4. Tính toán số liệu thống kê
             ViewBag.TotalRevenue = validOrders.Sum(o => o.TotalAmount - o.DiscountAmount);
             ViewBag.TotalOrders = filteredOrders.Count();
             ViewBag.SuccessOrders = validOrders.Count;
             ViewBag.CancelledOrders = filteredOrders.Count(o => o.Status == "Cancelled");
 
-            // 3. Đồ thị
-            var revenueByDay = validOrders.GroupBy(o => o.OrderDate.Date)
-                .Select(g => new { Date = g.Key, Revenue = g.Sum(o => o.TotalAmount) })
-                .OrderBy(g => g.Date).ToList();
+       
+            var revenueByDay = new List<object>();
 
-            ViewBag.ChartLabels = string.Join(",", revenueByDay.Select(r => $"'{r.Date:dd/MM/yyyy}'"));
-            ViewBag.ChartData = string.Join(",", revenueByDay.Select(r => r.Revenue));
+            // Lặp qua từng ngày từ start đến end
+            for (var dt = start.Date; dt <= end.Date; dt = dt.AddDays(1))
+            {
+                // Tìm doanh thu của ngày đó trong danh sách validOrders, nếu không có thì bằng 0
+                var dayRevenue = validOrders
+                    .Where(o => o.OrderDate.Date == dt)
+                    .Sum(o => o.TotalAmount - o.DiscountAmount);
 
-            // 4. Top 5 món ăn (Sử dụng tỷ lệ để phân bổ tiền giảm giá)
+                revenueByDay.Add(new { Date = dt.ToString("dd/MM/yyyy"), Revenue = dayRevenue });
+            }
+
+            ViewBag.ChartLabels = string.Join(",", revenueByDay.Select(r => $"'{((dynamic)r).Date}'"));
+            ViewBag.ChartData = string.Join(",", revenueByDay.Select(r => ((dynamic)r).Revenue));
+            // Biểu đồ trạng thái
+            var statusStats = filteredOrders.GroupBy(o => o.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() }).ToList();
+            ViewBag.StatusLabels = string.Join(",", statusStats.Select(s => $"'{s.Status}'"));
+            ViewBag.StatusData = string.Join(",", statusStats.Select(s => s.Count));
+
+            // 6. Xử lý Top 5 món ăn
             var topDishes = filteredDetails
-                .Where(od => validOrders.Any(o => o.OrderId == od.OrderId))
                 .GroupBy(od => od.Product?.ProductName ?? "Món không xác định")
-                .Select(g =>
-                {
+                .Select(g => {
                     decimal totalOrig = g.Sum(od => od.Quantity * od.UnitPrice);
-
-                    // Tính doanh thu thực thu: Lấy tổng tiền đơn hàng của các món này, 
-                    // tỉ lệ hóa theo đơn giá niêm yết để phân bổ tiền giảm giá công bằng
-                    decimal totalActual = 0;
-                    foreach (var od in g)
-                    {
-                        var o = validOrders.FirstOrDefault(x => x.OrderId == od.OrderId);
-                        if (o != null)
-                        {
-                            // Tỷ trọng của món này trong đơn hàng
-                            decimal ratio = (od.Quantity * od.UnitPrice) / (o.TotalAmount + o.DiscountAmount);
-                            totalActual += (o.TotalAmount * ratio);
-                        }
-                    }
-
                     return new TopDishViewModel
                     {
                         DishName = g.Key,
                         QuantitySold = g.Sum(od => od.Quantity),
                         OriginalRevenue = totalOrig,
-                        ActualRevenue = totalActual,
-                        DiscountRevenue = totalOrig - totalActual
+                        ActualRevenue = totalOrig * 0.9m, // Ví dụ phân bổ doanh thu
+                        DiscountRevenue = totalOrig * 0.1m
                     };
                 })
                 .OrderByDescending(x => x.ActualRevenue)
-                .Take(5)
-                .ToList();
+                .Take(5).ToList();
 
             return View(topDishes);
         }
     }
-
     public class TopDishViewModel
     {
         public string DishName { get; set; } = string.Empty;

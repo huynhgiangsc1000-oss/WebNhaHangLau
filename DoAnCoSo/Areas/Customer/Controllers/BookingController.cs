@@ -1,13 +1,10 @@
-﻿using DoAnCoSo.Data;
-using DoAnCoSo.Models;
-using DoAnCoSo.Services;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using DoAnCoSo.Data;
+using DoAnCoSo.Models;
+using System.Text.Encodings.Web;
 
 namespace DoAnCoSo.Areas.Customer.Controllers
 {
@@ -16,40 +13,61 @@ namespace DoAnCoSo.Areas.Customer.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
-        private readonly EmailSender _emailSender;
+        private readonly IEmailSender _emailSender;
 
-        public BookingController(ApplicationDbContext context, UserManager<User> userManager, EmailSender emailSender)
+        public BookingController(ApplicationDbContext context, UserManager<User> userManager, IEmailSender emailSender)
         {
             _context = context;
             _userManager = userManager;
             _emailSender = emailSender;
         }
 
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
-            // Nạp danh sách sản phẩm để hiển thị trên form đặt bàn
-            ViewBag.Products = await _context.Products.Where(p => p.IsAvailable).ToListAsync();
-            return View();
+            LoadViewBagSync(); // Dùng đồng bộ để tránh lỗi Async/SQL
+            var booking = new Booking
+            {
+                BookingDate = DateTime.Now.AddHours(2),
+                GuestCount = 1
+            };
+            return View(booking);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Booking booking, Dictionary<int, int> SelectedItems)
         {
+            ModelState.Remove(nameof(Booking.User));
+            ModelState.Remove(nameof(Booking.Table));
+
             if (ModelState.IsValid)
             {
-                var userIdStr = _userManager.GetUserId(User);
-                if (!string.IsNullOrEmpty(userIdStr)) booking.UserId = int.Parse(userIdStr);
+                // 1. Tính toán số tiền (Dùng ToList() để tránh lệnh WITH của SQL Server cũ)
+                decimal rawTotal = 0;
+                if (SelectedItems != null && SelectedItems.Any(x => x.Value > 0))
+                {
+                    var productIds = SelectedItems.Keys.ToList();
+                    var products = _context.Products.Where(p => productIds.Contains(p.ProductId)).ToList();
 
-                string randomCode = "NH-" + Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
-                booking.CheckInCode = randomCode;
+                    foreach (var item in SelectedItems.Where(x => x.Value > 0))
+                    {
+                        var product = products.FirstOrDefault(p => p.ProductId == item.Key);
+                        if (product != null) rawTotal += (product.Price * item.Value);
+                    }
+                }
+
+                booking.TotalAmount = rawTotal;
+                booking.CheckInCode = "NH-" + Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
                 booking.Status = "Pending";
                 booking.CreatedAt = DateTime.Now;
 
-                _context.Bookings.Add(booking);
-                await _context.SaveChangesAsync(); // Lưu để nhận BookingId
+                var user = await _userManager.GetUserAsync(User);
+                if (user != null) booking.UserId = user.Id;
 
-                // Lưu các món khách chọn vào PreOrderItems
+                _context.Bookings.Add(booking);
+                _context.SaveChanges(); // Lưu booking trước để lấy BookingId
+
+                // 2. Lưu chi tiết các món
                 if (SelectedItems != null)
                 {
                     foreach (var item in SelectedItems.Where(x => x.Value > 0))
@@ -61,68 +79,47 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                             Quantity = item.Value
                         });
                     }
-                    await _context.SaveChangesAsync();
+                    _context.SaveChanges();
                 }
 
-                // Gửi email xác nhận
-                try
-                {
-                    var domain = $"{Request.Scheme}://{Request.Host}";
-                    string accessUrl = $"{domain}/Customer/Table/AccessTable?checkInCode={randomCode}";
-                    string qrCodeImageUrl = $"https://quickchart.io/qr?text={Uri.EscapeDataString(accessUrl)}&size=200&ecLevel=Q";
+                // 3. Gửi Email (Vẫn giữ async vì không liên quan tới DB)
+                await SendBookingConfirmationEmail(booking);
 
-                    string subject = $"XÁC NHẬN ĐẶT BÀN - MÃ: {randomCode}";
-                    string htmlBody = $@"
-                        <div style='font-family: Arial, sans-serif; border: 1px solid #f0f0f0; padding: 25px; max-width: 500px; margin: auto; border-radius: 15px;'>
-                            <h2 style='color: #dc3545; text-align: center;'>ĐẶT BÀN THÀNH CÔNG!</h2>
-                            <p>Chào <b>{booking.FullName}</b>,</p>
-                            <p>Vui lòng đưa mã này cho nhân viên hoặc <b>quét mã QR tại bàn</b> để bắt đầu gọi món.</p>
-                            
-                            <div style='background-color: #fdf2f2; padding: 20px; border-radius: 10px; text-align: center; border: 1px dashed #dc3545;'>
-                                <p style='font-weight: bold;'>Quét mã này khi bạn đã ngồi vào bàn:</p>
-                                <a href='{accessUrl}'><img src='{qrCodeImageUrl}' width='180' height='180' style='display: block; margin: 0 auto;' alt='QR Code' /></a>
-                                <h3 style='color: #007bff; letter-spacing: 2px;'>{randomCode}</h3>
-                            </div>
-
-                            <div style='margin-top: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px;'>
-                                <p style='color: #dc3545; font-weight: bold; margin-bottom: 10px;'>Thông tin lịch hẹn:</p>
-                                <p>📅 Ngày: <b>{booking.BookingDate:dd/MM/yyyy}</b></p>
-                                <p>⏰ Giờ: <b>{booking.BookingDate:HH:mm}</b></p>
-                            </div>
-                        </div>";
-
-                    var userEmail = booking.Email ?? (await _userManager.GetUserAsync(User))?.Email;
-                    if (!string.IsNullOrEmpty(userEmail))
-                    {
-                        await _emailSender.SendEmailAsync(userEmail, subject, htmlBody);
-                    }
-                }
-                catch (Exception ex) { Console.WriteLine($"[Email Error]: {ex.Message}"); }
-
-                TempData["Success"] = $"Đặt bàn thành công! Check email để nhận QR truy cập bàn.";
+                TempData["Success"] = "Đặt bàn thành công! Mã xác nhận: " + booking.CheckInCode;
                 return RedirectToAction(nameof(Index));
             }
 
-            ViewBag.Products = await _context.Products.Where(p => p.IsAvailable).ToListAsync();
+            LoadViewBagSync();
             return View("Index", booking);
         }
 
-        public async Task<IActionResult> History(string search, string status)
+        private void LoadViewBagSync()
         {
-            var userIdStr = _userManager.GetUserId(User);
-            var query = _context.Bookings
-                .Include(b => b.Table)
-                .Where(b => b.UserId == int.Parse(userIdStr))
-                .AsQueryable();
+            // Thay vì dùng await ... ToListAsync(), dùng .ToList() để tránh lỗi câu lệnh SQL phức tạp
+            ViewBag.Products = _context.Products.Where(p => p.IsAvailable).OrderBy(p => p.ProductName).ToList();
+            ViewBag.Categories = _context.Categories.ToList();
+        }
 
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(b => b.CheckInCode.Contains(search));
+        private async Task SendBookingConfirmationEmail(Booking booking)
+        {
+            try
+            {
+                decimal depositAmount = booking.TotalAmount * 0.3m;
+                string qrData = $"CheckIn:{booking.CheckInCode}|Amount:{depositAmount}";
+                string qrImageUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={UrlEncoder.Default.Encode(qrData)}";
 
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(b => b.Status == status);
+                string htmlMessage = $@"<div style='font-family: Arial; padding: 20px;'>
+                    <h2>XÁC NHẬN ĐẶT BÀN</h2>
+                    <p>Mã: <strong>{booking.CheckInCode}</strong></p>
+                    <img src='{qrImageUrl}' />
+                </div>";
 
-            var bookings = await query.OrderByDescending(b => b.CreatedAt).ToListAsync();
-            return View(bookings);
+                await _emailSender.SendEmailAsync(booking.Email, "Xác nhận đặt bàn", htmlMessage);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
         }
     }
 }

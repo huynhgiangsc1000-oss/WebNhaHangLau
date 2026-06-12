@@ -15,30 +15,43 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4">
+   <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <form method="get" asp-action="Index" class="row g-3 align-items-end">
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-2 col-sm-6">
+                    <label class="form-label small fw-bold text-secondary">Chọn nhanh:</label>
+                    <select name="preset" class="form-select border shadow-none" onchange="this.form.submit()">
+                        <option value="">-- Tùy chỉnh --</option>
+                        <option value="today" selected="@(ViewBag.CurrentPreset == "today")">Hôm nay</option>
+                        <option value="thisMonth" selected="@(ViewBag.CurrentPreset == "thisMonth")">Tháng này</option>
+                        <option value="q1" selected="@(ViewBag.CurrentPreset == "q1")">Quý 1</option>
+                        <option value="q2" selected="@(ViewBag.CurrentPreset == "q2")">Quý 2</option>
+                        <option value="q3" selected="@(ViewBag.CurrentPreset == "q3")">Quý 3</option>
+                        <option value="q4" selected="@(ViewBag.CurrentPreset == "q4")">Quý 4</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label small fw-bold text-secondary">Từ ngày:</label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0 text-secondary"><i class="bi bi-calendar3"></i></span>
                         <input type="text" id="fromDate" name="fromDate" value="@ViewBag.FromDate" class="form-control border shadow-none vni-datepicker" placeholder="dd/mm/yyyy" />
                     </div>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label small fw-bold text-secondary">Đến ngày:</label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0 text-secondary"><i class="bi bi-calendar3"></i></span>
                         <input type="text" id="toDate" name="toDate" value="@ViewBag.ToDate" class="form-control border shadow-none vni-datepicker" placeholder="dd/mm/yyyy" />
                     </div>
                 </div>
-                <div class="col-md-3 col-sm-12">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label small fw-bold text-secondary">Xem theo buổi:</label>
                     <select name="sessionFilter" class="form-select border shadow-none">
                         <option value="">-- Tất cả các buổi --</option>
-                        <option value="Sang" selected="@(ViewBag.CurrentSession == "Sang")">Buổi Sáng (06:00 - 12:00)</option>
-                        <option value="Trua" selected="@(ViewBag.CurrentSession == "Trua")">Buổi Trưa - Chiều (12:00 - 17:00)</option>
-                        <option value="Toi" selected="@(ViewBag.CurrentSession == "Toi")">Buổi Tối (17:00 - 24:00)</option>
+                        <option value="Sang" selected="@(ViewBag.CurrentSession == "Sang")">Buổi Sáng</option>
+                        <option value="Trua" selected="@(ViewBag.CurrentSession == "Trua")">Buổi Trưa - Chiều</option>
+                        <option value="Toi" selected="@(ViewBag.CurrentSession == "Toi")">Buổi Tối</option>
                     </select>
                 </div>
                 <div class="col-md-3 col-12 d-flex gap-2">
@@ -203,20 +216,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
+        // Khởi tạo datepicker
         flatpickr(".vni-datepicker", {
             locale: "vn",
             dateFormat: "d/m/Y",
             allowInput: true
         });
 
+        // Chart Revenue
         var ctxRevenue = document.getElementById('revenueChart').getContext('2d');
         var revenueChart = new Chart(ctxRevenue, {
             type: 'line',
             data: {
-                labels: [@Html.Raw(ViewBag.ChartLabels)],
+                labels: [@Html.Raw(ViewBag.ChartLabels ?? "''")],
                 datasets: [{
                     label: 'Doanh thu thực tế (đ)',
-                    data: [@ViewBag.ChartData],
+                    data: [@Html.Raw(ViewBag.ChartData ?? "0")],
                     backgroundColor: 'rgba(220, 53, 69, 0.1)',
                     borderColor: 'rgba(220, 53, 69, 1)',
                     borderWidth: 3,
@@ -225,34 +240,36 @@
                     fill: true
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) { return value.toLocaleString('vi-VN') + ' đ'; }
-                        }
+                   options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    // Thêm thuộc tính này để biểu đồ không bị sát mép trên
+                    suggestedMax: Math.max(...[@Html.Raw(ViewBag.ChartData ?? "0")]) * 1.2,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString('vi-VN') + ' đ'; }
                     }
                 }
-            }
+            },
+            elements: {
+                line: {
+                    tension: 0.4 // Làm đường cong mượt hơn
+                }
+            }                  
+           } 
         });
 
+        // Chart Status
         var ctxStatus = document.getElementById('statusChart').getContext('2d');
         var statusChart = new Chart(ctxStatus, {
             type: 'doughnut',
             data: {
-                labels: [@Html.Raw(ViewBag.StatusLabels)],
+                labels: [@Html.Raw(ViewBag.StatusLabels ?? "''")],
                 datasets: [{
-                    data: [@ViewBag.StatusData],
-                    backgroundColor: [
-                        '#28a745',
-                        '#dc3545',
-                        '#ffc107',
-                        '#17a2b8',
-                        '#6c757d'
-                    ],
+                    data: [@Html.Raw(ViewBag.StatusData ?? "0")],
+                    backgroundColor: ['#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'],
                     borderWidth: 1
                 }]
             },

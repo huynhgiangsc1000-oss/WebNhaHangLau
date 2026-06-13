@@ -12,7 +12,11 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sqlOptions => {
+        sqlOptions.EnableRetryOnFailure();
+        // Dòng này rất quan trọng nếu SQL của bạn cũ
+        sqlOptions.CommandTimeout(60);
+    }));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

@@ -50,6 +50,11 @@ namespace DoAnCoSo.Models
         [Display(Name = "Mã xác nhận")]
         public string? CheckInCode { get; set; }
 
+        // --- BỔ SUNG: Lưu tổng tiền vào Database ---
+        [Display(Name = "Tổng tiền")]
+        [Column(TypeName = "decimal(18, 2)")] // Định dạng tiền tệ trong SQL
+        public decimal TotalAmount { get; set; }
+
         // Liên kết với Table
         public int? TableId { get; set; }
         [ForeignKey("TableId")]
@@ -61,10 +66,6 @@ namespace DoAnCoSo.Models
         public virtual User? User { get; set; }
 
         // Danh sách các món đã đặt trước
-        public List<PreOrderItem> PreOrderItems { get; set; } = new List<PreOrderItem>();
-
-        // Thuộc tính tính toán tạm thời (không lưu vào DB)
-        [NotMapped]
-        public decimal TotalAmount { get; set; }
+        public virtual List<PreOrderItem> PreOrderItems { get; set; } = new List<PreOrderItem>();
     }
 }

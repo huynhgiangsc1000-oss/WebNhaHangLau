@@ -24,7 +24,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
         public IActionResult Index()
         {
-            LoadViewBagSync(); // Dùng đồng bộ để tránh lỗi Async/SQL
+            LoadViewBagSync();
             var booking = new Booking
             {
                 BookingDate = DateTime.Now.AddHours(2),
@@ -42,12 +42,17 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
             if (ModelState.IsValid)
             {
-                // 1. Tính toán số tiền (Dùng ToList() để tránh lệnh WITH của SQL Server cũ)
                 decimal rawTotal = 0;
+
+                // 1. Dùng Raw SQL để lấy danh sách sản phẩm (Tránh lỗi SQL 'WITH')
                 if (SelectedItems != null && SelectedItems.Any(x => x.Value > 0))
                 {
                     var productIds = SelectedItems.Keys.ToList();
-                    var products = _context.Products.Where(p => productIds.Contains(p.ProductId)).ToList();
+                    string idList = string.Join(",", productIds);
+
+                    var products = _context.Products
+                        .FromSqlRaw($"SELECT * FROM Products WHERE ProductId IN ({idList})")
+                        .ToList();
 
                     foreach (var item in SelectedItems.Where(x => x.Value > 0))
                     {
@@ -65,7 +70,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 if (user != null) booking.UserId = user.Id;
 
                 _context.Bookings.Add(booking);
-                _context.SaveChanges(); // Lưu booking trước để lấy BookingId
+                _context.SaveChanges();
 
                 // 2. Lưu chi tiết các món
                 if (SelectedItems != null)
@@ -82,7 +87,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                     _context.SaveChanges();
                 }
 
-                // 3. Gửi Email (Vẫn giữ async vì không liên quan tới DB)
+                // 3. Gửi Email thông báo
                 await SendBookingConfirmationEmail(booking);
 
                 TempData["Success"] = "Đặt bàn thành công! Mã xác nhận: " + booking.CheckInCode;
@@ -95,9 +100,14 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
         private void LoadViewBagSync()
         {
-            // Thay vì dùng await ... ToListAsync(), dùng .ToList() để tránh lỗi câu lệnh SQL phức tạp
-            ViewBag.Products = _context.Products.Where(p => p.IsAvailable).OrderBy(p => p.ProductName).ToList();
-            ViewBag.Categories = _context.Categories.ToList();
+            // Dùng Raw SQL để lấy danh mục và sản phẩm, tránh EF sinh lệnh WITH
+            ViewBag.Products = _context.Products
+                .FromSqlRaw("SELECT * FROM Products WHERE IsAvailable = 1 ORDER BY ProductName")
+                .ToList();
+
+            ViewBag.Categories = _context.Categories
+                .FromSqlRaw("SELECT * FROM Categories")
+                .ToList();
         }
 
         private async Task SendBookingConfirmationEmail(Booking booking)
@@ -110,15 +120,21 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
                 string htmlMessage = $@"<div style='font-family: Arial; padding: 20px;'>
                     <h2>XÁC NHẬN ĐẶT BÀN</h2>
-                    <p>Mã: <strong>{booking.CheckInCode}</strong></p>
-                    <img src='{qrImageUrl}' />
+                    <p>Chào <strong>{booking.FullName}</strong>, đơn đặt bàn của bạn đã được ghi nhận.</p>
+                    <div style='background: #f8f9fa; padding: 15px; border-left: 5px solid #dc3545;'>
+                        <p><strong>Mã đặt bàn:</strong> {booking.CheckInCode}</p>
+                        <p><strong>Tổng hóa đơn:</strong> {booking.TotalAmount:N0} VNĐ</p>
+                        <p><strong>Số tiền cần cọc (30%):</strong> {depositAmount:N0} VNĐ</p>
+                        <img src='{qrImageUrl}' />
+                    </div>
+                    <p>Vui lòng xuất trình mã <strong>{booking.CheckInCode}</strong> khi đến nhà hàng.</p>
                 </div>";
 
                 await _emailSender.SendEmailAsync(booking.Email, "Xác nhận đặt bàn", htmlMessage);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(ex.Message);
+                System.Diagnostics.Debug.WriteLine($"Lỗi gửi email: {ex.Message}");
             }
         }
     }

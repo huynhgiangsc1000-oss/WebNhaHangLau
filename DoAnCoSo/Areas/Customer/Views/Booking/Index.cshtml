@@ -1,179 +1,200 @@
 ﻿@model DoAnCoSo.Models.Booking
 @{
-    ViewData["Title"] = "Đặt bàn trước";
+    ViewData["Title"] = "Đặt bàn trực tuyến";
 }
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
 <style>
-    .mini-menu-wrapper {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.4s ease-out, opacity 0.3s ease-out;
-        opacity: 0;
+    body {
+        background-color: #fcfcf9;
     }
 
-        .mini-menu-wrapper.show {
-            max-height: 1000px;
-            opacity: 1;
-        }
+    .custom-card {
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 25px;
+        height: 100%;
+    }
 
-    .mini-menu-scroll {
+    .section-title {
+        font-weight: 800;
+        color: #a32a2a;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #f8f9fa;
+        padding-bottom: 10px;
+    }
+
+    .form-control {
+        background: #f8f9fa;
+        border: 1px solid #eee;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .btn-submit {
+        background: #a32a2a;
+        color: #fff;
+        border-radius: 10px;
+        padding: 15px;
+        font-weight: bold;
+        width: 100%;
+    }
+
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
         max-height: 500px;
         overflow-y: auto;
     }
 
-    .menu-item-card:hover {
-        background-color: #fff5f5;
+    .menu-item-box {
+        border: 1px solid #eee;
+        border-radius: 15px;
+        padding: 10px;
+        text-align: center;
     }
 
-    .qty-input {
-        width: 40px !important;
+        .menu-item-box img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
+    .cart-item-img {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 8px;
     }
 </style>
 
-<div class="container mt-4 mb-5">
-    <div class="card shadow-lg border-0 rounded-4 mx-auto" style="max-width: 850px;">
-        <div class="card-body p-4 p-md-5">
-            <h3 class="text-center text-danger fw-bold mb-4"><i class="bi bi-calendar-check"></i> ĐẶT BÀN TRỰC TUYẾN</h3>
-
-            <form asp-area="Customer" asp-controller="Booking" asp-action="Create" method="post" id="bookingForm">
-                <div asp-validation-summary="All" class="text-danger small mb-3"></div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="FullName" class="form-label fw-bold">Họ và Tên</label>
-                        <input asp-for="FullName" class="form-control rounded-pill" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Email" class="form-label fw-bold">Email</label>
-                        <input asp-for="Email" class="form-control rounded-pill" required />
-                    </div>
+<div class="container-fluid px-4 mt-4">
+    <form id="bookingForm" method="post" asp-area="Customer" asp-controller="Booking" asp-action="Create">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="custom-card">
+                    <h5 class="section-title">📅 THÔNG TIN</h5>
+                    <div class="mb-3"><input asp-for="FullName" class="form-control" placeholder="Họ và tên" required /></div>
+                    <div class="mb-3"><input asp-for="PhoneNumber" class="form-control" placeholder="Số điện thoại" required /></div>
+                    <div class="mb-3"><input asp-for="GuestCount" type="number" class="form-control" placeholder="Số khách" /></div>
+                    <div class="mb-3"><input type="text" id="bookingDatePicker" name="BookingDate" class="form-control" placeholder="Chọn ngày giờ" /></div>
+                    <div class="mb-3"><textarea name="Note" class="form-control" placeholder="Ghi chú..." rows="2"></textarea></div>
+                    <div class="mb-3"><input type="text" id="voucherCode" class="form-control" placeholder="Mã giảm giá (VD: GIAM10)" oninput="renderCart()" /></div>
                 </div>
+            </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="PhoneNumber" class="form-label fw-bold">Số điện thoại</label>
-                        <input asp-for="PhoneNumber" class="form-control rounded-pill" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="GuestCount" class="form-label fw-bold">Số lượng khách</label>
-                        <input asp-for="GuestCount" type="number" class="form-control rounded-pill" min="1" max="50" value="1" required />
-                    </div>
-                </div>
+            <div class="col-md-5">
+                <div class="custom-card">
+                    <h5 class="section-title">📋 THỰC ĐƠN</h5>
+                    <input type="text" id="searchInput" class="form-control mb-2" placeholder="🔍 Tìm món ăn..." onkeyup="filterMenu()" />
+                    <select id="priceFilter" class="form-control mb-3" onchange="filterMenu()">
+                        <option value="0">Tất cả giá</option>
+                        <option value="100000">Dưới 100.000đ</option>
+                        <option value="200000">Dưới 200.000đ</option>
+                    </select>
+                    <div class="menu-grid" id="menuGrid">
+                        @foreach (var p in (List<DoAnCoSo.Models.Product>)ViewBag.Products)
+                        {
+                            string imgPath = string.IsNullOrEmpty(p.ImagePath) ? "default.jpg" : p.ImagePath;
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Ngày & Giờ đến</label>
-                    <input type="text" id="bookingDatePicker" name="BookingDate" class="form-control rounded-pill" readonly required />
-                </div>
+                            <div class="menu-item-box product-item" data-name="@p.ProductName.ToLower()" data-price="@p.Price">
+                                <img src="/images/@imgPath" onerror="this.src='/images/default.jpg'" />
+                                <div class="small fw-bold">@p.ProductName</div>
+                                <div class="text-danger small">@string.Format("{0:N0}", p.Price)đ</div>
 
-                <div class="mb-3">
-                    <label asp-for="DiscountCode" class="form-label fw-bold">Mã giảm giá</label>
-                    <input asp-for="DiscountCode" class="form-control rounded-pill" placeholder="Nhập mã (nếu có)" />
-                </div>
-
-                <div class="mb-4">
-                    <button type="button" id="toggleMenuBtn" class="btn btn-outline-danger w-100 rounded-pill fw-bold">
-                        <i class="bi bi-egg-fried"></i> CHỌN MÓN ĂN ĐẶT TRƯỚC (TÙY CHỌN)
-                    </button>
-
-                    <div id="miniMenuWrapper" class="mini-menu-wrapper border rounded-4 p-3 bg-light mt-3">
-                        <div class="d-flex gap-2 mb-3 flex-wrap">
-                            <button type="button" class="btn btn-sm btn-outline-danger active" onclick="filterMenu('all', this)">Tất cả</button>
-                            @foreach (var cat in (List<DoAnCoSo.Models.Category>)ViewBag.Categories)
-                            {
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="filterMenu('@cat.CategoryId', this)">@cat.CategoryName</button>
-                            }
-                        </div>
-                        <input type="text" id="menuSearch" class="form-control mb-3 rounded-pill" placeholder="🔍 Tìm kiếm món ăn..." onkeyup="searchMenu()">
-
-                        <div class="mini-menu-scroll row g-2" id="menuItemsGrid">
-                            @foreach (var p in (List<DoAnCoSo.Models.Product>)ViewBag.Products)
-                            {
-                                <div class="col-6 col-md-4 menu-item-card" data-category="@p.CategoryId" data-name="@p.ProductName.ToLower()" data-price="@p.Price">
-                                    <div class="card h-100 p-2 border-0 shadow-sm">
-                                        <img src="/images/@p.ImagePath"
-                                             class="rounded"
-                                             style="height: 80px; object-fit: cover; width: 100%;"
-                                             onerror="this.src='/images/default.jpg'" />
-                                            <h6 class="mb-0 fw-bold small">@p.ProductName</h6>
-                                            <small class="text-danger">@string.Format("{0:N0}", p.Price)đ</small>
-                                            <div class="input-group input-group-sm mt-1 justify-content-center">
-                                                <button type="button" class="btn btn-outline-secondary btn-minus" data-id="@p.ProductId">-</button>
-                                                <input type="text" class="form-control text-center qty-input" id="qty-@p.ProductId" value="0" readonly />
-                                                <button type="button" class="btn btn-outline-secondary btn-plus" data-id="@p.ProductId">+</button>
-                                                <input type="hidden" id="input-prod-@p.ProductId" name="SelectedItems[@p.ProductId]" value="0" />
-                                            </div>
-                                        </div>
-                                    </div>
-                            }
-                        </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger mt-1 w-100"
+                                        onclick="addToCart(@p.ProductId, '@p.ProductName.Replace("'", "\\'")', @p.Price, '@imgPath')">
+                                    Thêm
+                                </button>
+                            </div>
+                        }
                     </div>
                 </div>
+            </div>
 
-                <div class="alert alert-danger text-center fw-bold fs-5 mb-4 shadow-sm" id="totalAmountDisplay">
-                    Tổng tiền dự kiến: 0đ
+            <div class="col-md-4">
+                <div class="custom-card">
+                    <h5 class="section-title">🛒 GIỎ HÀNG</h5>
+                    <div id="cartList" style="max-height: 300px; overflow-y: auto;"></div>
+                    <div class="mt-3 border-top pt-2">
+                        <div class="d-flex justify-content-between small"><span>Phí giữ bàn:</span> <b>30.000đ</b></div>
+                        <div class="d-flex justify-content-between small"><span>Tiền món:</span> <b id="foodTotal">0đ</b></div>
+                        <div class="d-flex justify-content-between small text-success"><span>Giảm giá:</span> <b id="discountAmount">0đ</b></div>
+                        <div class="d-flex justify-content-between mt-2"><span>Đặt cọc (30%):</span> <b id="depositDisplay" class="text-primary">0đ</b></div>
+                        <h5 class="mt-2 text-danger">Tổng thanh toán: <span id="finalTotal">30.000đ</span></h5>
+                    </div>
+                    <button type="submit" class="btn btn-submit mt-3">XÁC NHẬN ĐẶT BÀN</button>
                 </div>
+            </div>
 
-                <button type="submit" class="btn btn-danger w-100 py-3 rounded-pill fw-bold shadow">GỬI YÊU CẦU ĐẶT BÀN</button>
-            </form>
         </div>
-    </div>
+
+    </form>
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            flatpickr("#bookingDatePicker", { enableTime: true, dateFormat: "Y-m-d H:i", minDate: "today" });
-            document.getElementById("toggleMenuBtn").addEventListener("click", () => document.getElementById("miniMenuWrapper").classList.toggle("show"));
-        });
+        let cart = [];
 
-        function filterMenu(catId, btn) {
-            document.querySelectorAll('.btn-outline-danger').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.menu-item-card').forEach(item => {
-                item.style.display = (catId === 'all' || item.dataset.category === catId) ? 'block' : 'none';
+        function filterMenu() {
+            let search = document.getElementById('searchInput').value.toLowerCase();
+            let limit = parseInt(document.getElementById('priceFilter').value);
+            document.querySelectorAll('.product-item').forEach(item => {
+                let name = item.getAttribute('data-name');
+                let price = parseInt(item.getAttribute('data-price'));
+                item.style.display = (name.includes(search) && (limit === 0 || price <= limit)) ? 'block' : 'none';
             });
         }
 
-        function searchMenu() {
-            const val = document.getElementById("menuSearch").value.toLowerCase();
-            document.querySelectorAll('.menu-item-card').forEach(item => {
-                item.style.display = item.dataset.name.includes(val) ? 'block' : 'none';
-            });
+        function addToCart(id, name, price, img) {
+            let item = cart.find(i => i.id == id);
+            if (item) {
+                item.qty++;
+            } else {
+                // Lưu tên file ảnh vào thuộc tính image
+                cart.push({ id: id, name: name, price: price, image: img, qty: 1 });
+            }
+            renderCart();
         }
 
-        document.querySelectorAll(".btn-plus, .btn-minus").forEach(btn => {
-            btn.addEventListener("click", function() {
-                const id = this.getAttribute("data-id");
-                const input = document.getElementById(`qty-${id}`);
-                const hidden = document.getElementById(`input-prod-${id}`);
-                let val = parseInt(input.value);
-                if (this.classList.contains("btn-plus")) val++;
-                else if (val > 0) val--;
-                input.value = val;
-                hidden.value = val;
-                updateSummary();
-            });
+           function renderCart() {
+        let list = document.getElementById('cartList');
+        list.innerHTML = '';
+        let foodTotal = 0;
+
+        cart.forEach(i => {
+            foodTotal += (i.price * i.qty);
+
+            // ĐOẠN QUAN TRỌNG:
+            // Thay vì tự ghép chuỗi, ta dùng đúng tên file ảnh (i.image)
+            // giống hệt cách menu đang hiển thị
+            let imgPath = i.image ? i.image : 'default.jpg';
+
+            list.innerHTML += `
+                <div class="cart-item mb-2 d-flex align-items-center">
+                    <img src="/images/${imgPath}" class="cart-item-img"
+                         onerror="this.src='/images/default.jpg'">
+                    <div class="ms-2">
+                        <div class="small fw-bold">${i.name}</div>
+                        <div class="text-danger small">${i.price.toLocaleString()}đ x ${i.qty}</div>
+                    </div>
+                </div>`;
         });
 
-        function updateSummary() {
-            let totalItems = 0;
-            let totalPrice = 0;
-            document.querySelectorAll('.menu-item-card').forEach(card => {
-                const qtyInput = card.querySelector('.qty-input');
-                const qty = parseInt(qtyInput.value);
-                const price = parseFloat(card.getAttribute('data-price'));
-                if (qty > 0) {
-                    totalItems += qty;
-                    totalPrice += (qty * price);
-                }
-            });
-            const btn = document.getElementById("toggleMenuBtn");
-            btn.innerHTML = totalItems > 0 ? `<i class="bi bi-egg-fried"></i> MÓN ĐÃ CHỌN: ${totalItems} MÓN` : `<i class="bi bi-egg-fried"></i> CHỌN MÓN ĂN ĐẶT TRƯỚC (TÙY CHỌN)`;
-            document.getElementById("totalAmountDisplay").innerText = "Tổng tiền dự kiến: " + totalPrice.toLocaleString('vi-VN') + "đ";
+            // TÍNH TOÁN (Đã đưa vào trong hàm renderCart)
+            let voucher = document.getElementById('voucherCode').value;
+            let discount = (voucher === "GIAM10") ? 10000 : 0;
+            let baseTotal = 30000 + foodTotal;
+            let amountAfterDiscount = Math.max(0, baseTotal - discount);
+            let deposit = amountAfterDiscount * 0.3;
+
+            document.getElementById('foodTotal').innerText = foodTotal.toLocaleString() + 'đ';
+            document.getElementById('discountAmount').innerText = "-" + discount.toLocaleString() + 'đ';
+            document.getElementById('depositDisplay').innerText = deposit.toLocaleString() + 'đ';
+            document.getElementById('finalTotal').innerText = amountAfterDiscount.toLocaleString() + 'đ';
         }
     </script>
 }

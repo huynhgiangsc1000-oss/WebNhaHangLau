@@ -1,78 +1,85 @@
-﻿@model DoAnCoSo.Models.Booking
+@model DoAnCoSo.Models.Booking
 @{
     ViewData["Title"] = "Đặt bàn trực tuyến";
 }
 
-<style>
-    body {
-        background-color: #fcfcf9;
-    }
-
-    .custom-card {
-        background: #fff;
-        border-radius: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        padding: 25px;
-        height: 100%;
-    }
-
-    .section-title {
-        font-weight: 800;
-        color: #a32a2a;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #f8f9fa;
-        padding-bottom: 10px;
-    }
-
-    .form-control {
-        background: #f8f9fa;
-        border: 1px solid #eee;
-        border-radius: 10px;
-        padding: 10px;
-    }
-
-    .btn-submit {
-        background: #a32a2a;
-        color: #fff;
-        border-radius: 10px;
-        padding: 15px;
-        font-weight: bold;
-        width: 100%;
-    }
-
-    .menu-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        max-height: 500px;
-        overflow-y: auto;
-    }
-
-    .menu-item-box {
-        border: 1px solid #eee;
-        border-radius: 15px;
-        padding: 10px;
-        text-align: center;
-    }
-
-        .menu-item-box img {
-            width: 100%;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 8px;
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            background-color: #fcfcf9;
         }
 
-    .cart-item-img {
-        width: 50px;
-        height: 50px;
-        object-fit: cover;
-        border-radius: 8px;
-    }
-</style>
+        .custom-card {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 25px;
+            height: 100%;
+        }
+
+        .section-title {
+            font-weight: 800;
+            color: #a32a2a;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f8f9fa;
+            padding-bottom: 10px;
+        }
+
+        .form-control {
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .btn-submit {
+            background: #a32a2a;
+            color: #fff;
+            border-radius: 10px;
+            padding: 15px;
+            font-weight: bold;
+            width: 100%;
+            border: none;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .menu-item-box {
+            border: 1px solid #eee;
+            border-radius: 15px;
+            padding: 10px;
+            text-align: center;
+        }
+
+            .menu-item-box img {
+                width: 100%;
+                height: 100px;
+                object-fit: cover;
+                border-radius: 10px;
+                margin-bottom: 8px;
+            }
+
+        .cart-item-img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+    </style>
+}
 
 <div class="container-fluid px-4 mt-4">
     <form id="bookingForm" method="post" asp-area="Customer" asp-controller="Booking" asp-action="Create">
+        <!-- Input ẩn để chứa dữ liệu giỏ hàng gửi về Controller -->
+        <input type="hidden" name="CartDetails" id="cartJsonInput" />
+
         <div class="row g-4">
             <div class="col-md-3">
                 <div class="custom-card">
@@ -80,7 +87,7 @@
                     <div class="mb-3"><input asp-for="FullName" class="form-control" placeholder="Họ và tên" required /></div>
                     <div class="mb-3"><input asp-for="PhoneNumber" class="form-control" placeholder="Số điện thoại" required /></div>
                     <div class="mb-3"><input asp-for="GuestCount" type="number" class="form-control" placeholder="Số khách" /></div>
-                    <div class="mb-3"><input type="text" id="bookingDatePicker" name="BookingDate" class="form-control" placeholder="Chọn ngày giờ" /></div>
+                    <div class="mb-3"><input type="text" id="bookingDatePicker" name="BookingDate" class="form-control" placeholder="Chọn ngày giờ" required /></div>
                     <div class="mb-3"><textarea name="Note" class="form-control" placeholder="Ghi chú..." rows="2"></textarea></div>
                     <div class="mb-3"><input type="text" id="voucherCode" class="form-control" placeholder="Mã giảm giá (VD: GIAM10)" oninput="renderCart()" /></div>
                 </div>
@@ -99,14 +106,16 @@
                         @foreach (var p in (List<DoAnCoSo.Models.Product>)ViewBag.Products)
                         {
                             string imgPath = string.IsNullOrEmpty(p.ImagePath) ? "default.jpg" : p.ImagePath;
-
                             <div class="menu-item-box product-item" data-name="@p.ProductName.ToLower()" data-price="@p.Price">
                                 <img src="/images/@imgPath" onerror="this.src='/images/default.jpg'" />
                                 <div class="small fw-bold">@p.ProductName</div>
                                 <div class="text-danger small">@string.Format("{0:N0}", p.Price)đ</div>
-
                                 <button type="button" class="btn btn-sm btn-outline-danger mt-1 w-100"
-                                        onclick="addToCart(@p.ProductId, '@p.ProductName.Replace("'", "\\'")', @p.Price, '@imgPath')">
+                                        data-product-id="@p.ProductId"
+                                        data-product-name="@p.ProductName"
+                                        data-product-price="@p.Price"
+                                        data-product-img="@imgPath"
+                                        onclick="addToCart(this.dataset.productId, this.dataset.productName, this.dataset.productPrice, this.dataset.productImg)">
                                     Thêm
                                 </button>
                             </div>
@@ -129,14 +138,21 @@
                     <button type="submit" class="btn btn-submit mt-3">XÁC NHẬN ĐẶT BÀN</button>
                 </div>
             </div>
-
         </div>
-
     </form>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        // 1. Khởi tạo lịch
+        flatpickr("#bookingDatePicker", {
+            enableTime: true,
+            dateFormat: "d/m/Y H:i",
+            time_24hr: true,
+            minDate: "today"
+        });
+
         let cart = [];
 
         function filterMenu() {
@@ -151,16 +167,11 @@
 
         function addToCart(id, name, price, img) {
             let item = cart.find(i => i.id == id);
-            if (item) {
-                item.qty++;
-            } else {
-                // Lưu tên file ảnh vào thuộc tính image
-                cart.push({ id: id, name: name, price: price, image: img, qty: 1 });
-            }
+            if (item) item.qty++;
+            else cart.push({ id, name, price: parseInt(price), image: img, qty: 1 });
             renderCart();
         }
-
-           function renderCart() {
+            function renderCart() {
         let list = document.getElementById('cartList');
         list.innerHTML = '';
         let foodTotal = 0;
@@ -168,14 +179,13 @@
         cart.forEach(i => {
             foodTotal += (i.price * i.qty);
 
-            // ĐOẠN QUAN TRỌNG:
-            // Thay vì tự ghép chuỗi, ta dùng đúng tên file ảnh (i.image)
-            // giống hệt cách menu đang hiển thị
-            let imgPath = i.image ? i.image : 'default.jpg';
+            // Logic kiểm tra ảnh: nếu tên file trống hoặc null, dùng default.jpg
+            let imgPath = (i.image && i.image !== "null" && i.image.trim() !== "") ? i.image : 'default.jpg';
 
             list.innerHTML += `
                 <div class="cart-item mb-2 d-flex align-items-center">
-                    <img src="/images/${imgPath}" class="cart-item-img"
+                    <img src="/images/${imgPath}"
+                         class="cart-item-img"
                          onerror="this.src='/images/default.jpg'">
                     <div class="ms-2">
                         <div class="small fw-bold">${i.name}</div>
@@ -184,7 +194,7 @@
                 </div>`;
         });
 
-            // TÍNH TOÁN (Đã đưa vào trong hàm renderCart)
+            // Tính tiền
             let voucher = document.getElementById('voucherCode').value;
             let discount = (voucher === "GIAM10") ? 10000 : 0;
             let baseTotal = 30000 + foodTotal;
@@ -195,6 +205,9 @@
             document.getElementById('discountAmount').innerText = "-" + discount.toLocaleString() + 'đ';
             document.getElementById('depositDisplay').innerText = deposit.toLocaleString() + 'đ';
             document.getElementById('finalTotal').innerText = amountAfterDiscount.toLocaleString() + 'đ';
+
+            // Cập nhật dữ liệu vào input ẩn
+            document.getElementById('cartJsonInput').value = JSON.stringify(cart);
         }
     </script>
 }

@@ -1,4 +1,4 @@
-﻿@model DoAnCoSo.Models.Order
+@model DoAnCoSo.Models.Order
 @{
     Layout = null;
 
@@ -9,7 +9,16 @@
 
     // 2. Tính toán tiền giảm và tổng thanh toán
     decimal discountAmount = Model.TotalAmount * (appliedPercent / 100m);
-    decimal finalPrice = Model.TotalAmount - discountAmount;
+    
+    decimal depositAmount = 0;
+    if (Model.Booking != null && Model.Booking.CheckInCode != null && Model.Booking.CheckInCode.StartsWith("NH-"))
+    {
+        depositAmount = Model.Booking.TotalAmount * 0.3m;
+        if (depositAmount > 0 && depositAmount < 30000) depositAmount = 30000;
+    }
+    
+    decimal finalPrice = Model.TotalAmount - discountAmount - depositAmount;
+    if (finalPrice < 0) finalPrice = 0;
 }
 
 <!DOCTYPE html>
@@ -97,7 +106,7 @@
                     <p class="mb-1"><strong>Bàn:</strong> <span class="badge bg-dark">@Model.Table?.TableName</span></p>
                 </div>
                 <div class="col-6 text-end">
-                    <p class="mb-1"><strong>Khách hàng:</strong> @(Model.User?.FullName ?? "Khách vãng lai")</p>
+                    <p class="mb-1"><strong>Khách hàng:</strong> @(Model.User?.FullName ?? Model.Booking?.FullName ?? "Khách vãng lai")</p>
                     @if (Model.User != null)
                     {
                         <p class="mb-1 small text-muted">Hạng thẻ: @(Model.User.Rank?.RankName ?? "Thành viên")</p>
@@ -151,6 +160,16 @@
                                 <small class="italic">(@(appliedPercent == rankPercent ? "Ưu đãi hạng thẻ" : "Voucher: " + Model.Promotion?.CouponCode))</small>
                             </span>
                             <span class="fw-bold">-@discountAmount.ToString("N0")đ</span>
+                        </div>
+                    }
+                    
+                    @if (depositAmount > 0)
+                    {
+                        <div class="d-flex justify-content-between mb-2 text-primary small">
+                            <span>
+                                <i class="fas fa-credit-card me-1"></i> Đã đặt cọc (VNPAY):
+                            </span>
+                            <span class="fw-bold">-@depositAmount.ToString("N0")đ</span>
                         </div>
                     }
 

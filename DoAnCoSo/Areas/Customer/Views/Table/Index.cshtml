@@ -1,4 +1,4 @@
-﻿@model IEnumerable<DoAnCoSo.Models.Table>
+@model IEnumerable<DoAnCoSo.Models.Table>
 @{
     ViewData["Title"] = "Sơ đồ nhà hàng";
 }
@@ -23,13 +23,16 @@
                 @foreach (var table in Model)
                 {
                     // Logic kiểm tra trạng thái
-                    var bookingToday = table.Bookings?.FirstOrDefault(b => b.Status == "Confirmed" && b.BookingDate.Date == DateTime.Today);
+                    var allBookingsToday = table.Bookings?.Where(b => (b.Status == "Confirmed" || b.Status == "Pending") && b.BookingDate.Date == DateTime.Today).OrderBy(b => b.BookingDate).ToList();
+                    var upcomingBooking = allBookingsToday?.FirstOrDefault(b => b.BookingDate >= DateTime.Now.AddHours(-1) && b.BookingDate <= DateTime.Now.AddHours(1));
+                    var anyBookingToday = allBookingsToday?.FirstOrDefault(b => b.BookingDate > DateTime.Now);
 
                     bool isOccupied = (table.Status == "Occupied" || table.Status == "Busy");
-                    bool isReservedToday = bookingToday != null;
+                    bool isReservedNow = upcomingBooking != null;
+                    bool isReservedLater = upcomingBooking == null && anyBookingToday != null;
 
-                    string statusText = isOccupied ? "Đang sử dụng" : (isReservedToday ? "Đã đặt trước" : "Còn trống");
-                    string colorClass = isOccupied ? "table-occupied" : (isReservedToday ? "table-reserved" : "table-empty");
+                    string statusText = isOccupied ? "Đang sử dụng" : (isReservedNow ? "Đã đặt trước" : "Còn trống");
+                    string colorClass = isOccupied ? "table-occupied" : (isReservedNow ? "table-reserved" : "table-empty");
 
                     <div class="table-item @colorClass" data-bs-toggle="modal" data-bs-target="#qrModal-@table.TableId">
                         <div class="table-icon">
@@ -43,10 +46,16 @@
 
                         <div class="table-status mt-1">@statusText</div>
 
-                        @if (isReservedToday && !isOccupied)
+                        @if (isReservedNow && !isOccupied)
                         {
                             <div class="small fw-bold text-warning animate__animated animate__pulse animate__infinite">
-                                <i class="bi bi-clock me-1"></i>@bookingToday.BookingDate.ToString("HH:mm")
+                                <i class="bi bi-clock me-1"></i>@upcomingBooking.BookingDate.ToString("HH:mm")
+                            </div>
+                        }
+                        else if (isReservedLater && !isOccupied)
+                        {
+                            <div class="small fw-bold text-muted mt-1">
+                                <i class="bi bi-calendar-event me-1"></i>Có khách lúc: @anyBookingToday.BookingDate.ToString("HH:mm")
                             </div>
                         }
                     </div>
@@ -58,9 +67,13 @@
 
 @foreach (var table in Model)
 {
-    var bookingToday = table.Bookings?.FirstOrDefault(b => b.Status == "Confirmed" && b.BookingDate.Date == DateTime.Today);
+    var allBookingsToday = table.Bookings?.Where(b => (b.Status == "Confirmed" || b.Status == "Pending") && b.BookingDate.Date == DateTime.Today).OrderBy(b => b.BookingDate).ToList();
+    var upcomingBooking = allBookingsToday?.FirstOrDefault(b => b.BookingDate >= DateTime.Now.AddHours(-1) && b.BookingDate <= DateTime.Now.AddHours(1));
+    var anyBookingToday = allBookingsToday?.FirstOrDefault(b => b.BookingDate > DateTime.Now);
+
     bool isOccupied = (table.Status == "Occupied" || table.Status == "Busy");
-    bool isReservedToday = bookingToday != null;
+    bool isReservedNow = upcomingBooking != null;
+    bool isReservedLater = upcomingBooking == null && anyBookingToday != null;
 
     <div class="modal fade" id="qrModal-@table.TableId" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -93,12 +106,12 @@
                             </div>
                         </div>
                     }
-                    else if (isReservedToday)
+                    else if (isReservedNow)
                     {
                         <div class="py-3">
                             <i class="bi bi-calendar-check-fill display-4 text-warning"></i>
-                            <p class="mt-3 fw-bold text-warning">Bàn đã được đặt vào lúc @bookingToday.BookingDate.ToString("HH:mm")!</p>
-                            <p class="text-muted small">Bàn này đã có khách hẹn trước. Nếu bạn là chủ đơn đặt này, vui lòng nhấn nút dưới.</p>
+                            <p class="mt-3 fw-bold text-warning">Bàn đã được đặt vào lúc @upcomingBooking.BookingDate.ToString("HH:mm")!</p>
+                            <p class="text-muted small">Bàn này đã có khách hẹn trước và sắp tới giờ. Nếu bạn là chủ đơn đặt này, vui lòng nhấn nút dưới.</p>
                             <a href="@Url.Action("AccessTable", "Table", new { area = "Customer", id = table.TableId })"
                                class="btn btn-warning btn-sm rounded-pill px-4 mt-2 shadow-sm">
                                 <i class="bi bi-check-circle me-2"></i>Tôi là khách đặt bàn này
@@ -110,6 +123,15 @@
                         <div class="qr-container p-3 bg-white d-inline-block border rounded mb-3">
                             <img src="@table.QrCode" class="img-fluid" style="max-width: 220px;" />
                         </div>
+                        
+                        @if (isReservedLater)
+                        {
+                            <div class="alert alert-warning py-2 mb-3 small text-start">
+                                <i class="bi bi-info-circle-fill me-1"></i> Bàn này có khách đặt trước vào lúc <strong>@anyBookingToday.BookingDate.ToString("HH:mm")</strong>. 
+                                Quý khách vui lòng kết thúc bữa ăn trước khoảng thời gian này nhé!
+                            </div>
+                        }
+
                         <p class="text-muted small mb-3">Quét mã hoặc nhấn nút bên dưới để xem thực đơn tại <strong>@table.TableName</strong></p>
 
                         <div class="d-grid gap-2">

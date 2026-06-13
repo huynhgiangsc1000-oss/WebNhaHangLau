@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Http
 @inject IHttpContextAccessor HttpContextAccessor
 <!DOCTYPE html>
 <html lang="vi">
@@ -303,6 +303,10 @@
                             <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="mw-icon-circle shadow-sm" title="Giỏ hàng">
                                 <i class="bi bi-cart3"></i>
                                 <span id="cart-badge-nav" class="badge rounded-pill bg-danger" style="display:none;">0</span>
+                            </a>
+                            
+                            <a asp-area="Customer" asp-controller="Account" asp-action="Logout" class="mw-icon-circle shadow-sm text-danger" title="Đăng xuất">
+                                <i class="bi bi-box-arrow-right"></i>
                             </a>
                         }
                         else

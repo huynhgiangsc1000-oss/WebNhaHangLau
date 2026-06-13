@@ -1,4 +1,4 @@
-﻿using DoAnCoSo.Data;
+using DoAnCoSo.Data;
 using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -29,13 +29,13 @@ namespace DoAnCoSo.Areas.Admin.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Promotion promo, IFormFile? file)
+        public async Task<IActionResult> Create(Promotion promo, IFormFile? ImageFile)
         {
             if (ModelState.IsValid)
             {
-                if (file != null)
+                if (ImageFile != null)
                 {
-                    promo.ImageUrl = await SaveImage(file);
+                    promo.ImageUrl = await SaveImage(ImageFile);
                 }
 
                 _context.Promotions.Add(promo);

@@ -1,9 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using DoAnCoSo.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DoAnCoSo.Data;
+
 using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Authorization;
 using System;
@@ -22,19 +20,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
 
         public async Task<IActionResult> Index(string searchString, string statusFilter, string dateFilter = "Today")
         {
-            // 1. TỰ ĐỘNG HỦY ĐƠN QUÁ HẠN (Sau 30 phút so với BookingDate)
-            var expiryLimit = DateTime.Now.AddMinutes(-30);
-            var expired = await _context.Bookings
-                .Include(b => b.Table)
-                .Where(b => b.Status == "Confirmed" && b.BookingDate < expiryLimit)
-                .ToListAsync();
-
-            foreach (var b in expired)
-            {
-                b.Status = "Cancelled";
-                if (b.Table != null) b.Table.Status = "Empty";
-            }
-            await _context.SaveChangesAsync();
+            // Bỏ tự động hủy đơn ở đây, vì đã được chuyển qua Background Service
 
             // 2. Lấy dữ liệu hiển thị
             var query = _context.Bookings.Include(b => b.Table).Include(b => b.User).AsQueryable();
@@ -48,6 +34,18 @@ namespace DoAnCoSo.Areas.Admin.Controllers
 
             ViewBag.AvailableTables = await _context.Tables.Where(t => t.Status == "Empty").ToListAsync();
             return View(await query.OrderByDescending(b => b.BookingDate).ToListAsync());
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetDetails(int id)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Table)
+                .Include(b => b.PreOrderItems).ThenInclude(p => p.Product)
+                .FirstOrDefaultAsync(b => b.BookingId == id);
+
+            if (booking == null) return NotFound();
+            return PartialView("_BookingDetailModal", booking);
         }
 
         [HttpPost]
@@ -74,7 +72,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                     BookingId = bookingId,
                     TableId = tableId,
                     OrderDate = DateTime.Now,
-                    Status = Order.StatusPending,
+                    Status = Order.StatusPreOrder,
                     TotalAmount = booking.PreOrderItems.Sum(p => p.Quantity * p.Product.Price)
                 };
                 _context.Orders.Add(newOrder);
@@ -96,6 +94,12 @@ namespace DoAnCoSo.Areas.Admin.Controllers
             return Json(new { success = true });
         }
 
+        [HttpGet]
+        public IActionResult CheckIn()
+        {
+            return View();
+        }
+
         [HttpPost]
         public async Task<IActionResult> ProcessCheckIn(string qrCode)
         {
@@ -105,6 +109,13 @@ namespace DoAnCoSo.Areas.Admin.Controllers
 
             booking.Status = "CheckedIn";
             if (booking.Table != null) booking.Table.Status = "Occupied";
+
+            // Khi khách Check-in, đơn hàng (Order) chuyển sang trạng thái "Đang phục vụ" (Processing)
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.BookingId == booking.BookingId);
+            if (order != null && (order.Status == "Pending" || order.Status == "PreOrder"))
+            {
+                order.Status = "Processing";
+            }
 
             await _context.SaveChangesAsync();
             return Json(new { success = true });

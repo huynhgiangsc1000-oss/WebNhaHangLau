@@ -1,4 +1,4 @@
-﻿using DoAnCoSo.Data;
+using DoAnCoSo.Data;
 using DoAnCoSo.Models;
 using DoAnCoSo.Services;
 using Microsoft.AspNetCore.Identity;
@@ -73,6 +73,7 @@ builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 // --- 6. CẤU HÌNH VNPAY & SERVICES KHÁC ---
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHostedService<BookingAutoProcessService>();
 builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 builder.Services.AddRazorPages();
 

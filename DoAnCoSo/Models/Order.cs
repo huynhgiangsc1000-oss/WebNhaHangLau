@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAnCoSo.Models
@@ -8,6 +8,7 @@ namespace DoAnCoSo.Models
         public const string StatusPending = "Pending";     // Mới đặt, chưa trả tiền
         public const string StatusCompleted = "Completed"; // Đã ăn xong & thanh toán thành công
         public const string StatusCancelled = "Cancelled"; // Đơn bị hủy
+        public const string StatusPreOrder = "PreOrder";   // Đã xác nhận đặt bàn, chờ đến giờ
         [Key]
         public int OrderId { get; set; }
         public DateTime OrderDate { get; set; } = DateTime.Now;

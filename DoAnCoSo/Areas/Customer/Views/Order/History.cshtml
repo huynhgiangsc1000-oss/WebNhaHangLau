@@ -1,4 +1,4 @@
-﻿@model IEnumerable<DoAnCoSo.Models.Order>
+@model IEnumerable<DoAnCoSo.Models.Order>
 @using Microsoft.AspNetCore.Http
 
 @{
@@ -63,8 +63,24 @@
                                 </div>
 
                                 <div class="col-md-3 text-md-end text-center my-3 my-md-0">
+                                    @{
+                                        decimal rankPercent = order.User?.Rank?.DiscountPercent ?? 0;
+                                        decimal promoPercent = order.Promotion?.DiscountValue ?? 0;
+                                        decimal appliedPercent = Math.Max(rankPercent, promoPercent);
+                                        decimal discountAmt = order.Status == "Completed" ? order.DiscountAmount : (order.TotalAmount * (appliedPercent / 100m));
+                                        decimal finalPaidAmount = order.TotalAmount - discountAmt;
+                                        if (finalPaidAmount < 0) finalPaidAmount = 0;
+                                    }
                                     <span class="text-muted small d-block">Tổng thanh toán:</span>
-                                    <span class="fw-bold text-danger h5 mb-0">@order.TotalAmount.ToString("N0") đ</span>
+                                    @if (discountAmt > 0)
+                                    {
+                                        <span class="text-decoration-line-through text-muted small me-2" style="font-size: 0.85rem;">@order.TotalAmount.ToString("N0") đ</span>
+                                        <span class="fw-bold text-danger h5 mb-0">@finalPaidAmount.ToString("N0") đ</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold text-danger h5 mb-0">@order.TotalAmount.ToString("N0") đ</span>
+                                    }
                                 </div>
 
                                 <div class="col-md-3 text-end">

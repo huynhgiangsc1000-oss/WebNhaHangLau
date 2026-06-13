@@ -27,7 +27,7 @@
                     </div>
 
                     <!-- Hình ảnh ưu đãi -->
-                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/images/Logo.png" : item.ImageUrl)"
+                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/images/Logo.png" : (item.ImageUrl.StartsWith("http") ? item.ImageUrl : "/" + item.ImageUrl.TrimStart('/', '\\').Replace('\\', '/')))"
                          class="card-img-top rounded-top"
                          alt="@item.Title"
                          style="height: 220px; object-fit: cover;">

@@ -71,6 +71,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 {
                     BookingId = bookingId,
                     TableId = tableId,
+                    UserId = booking.UserId,
                     OrderDate = DateTime.Now,
                     Status = Order.StatusPreOrder,
                     TotalAmount = booking.PreOrderItems.Sum(p => p.Quantity * p.Product.Price)

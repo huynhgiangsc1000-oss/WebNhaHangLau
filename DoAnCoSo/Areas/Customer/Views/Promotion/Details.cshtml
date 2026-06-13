@@ -1,4 +1,4 @@
-﻿@model DoAnCoSo.Models.Promotion
+@model DoAnCoSo.Models.Promotion
 
 @{
     ViewData["Title"] = "Chi tiết ưu đãi - " + Model.Title;
@@ -17,7 +17,7 @@
         <!-- Cột trái: Hình ảnh banner -->
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm overflow-hidden rounded-4">
-                <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/no-promo.png" : Model.ImageUrl)"
+                <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/no-promo.png" : (Model.ImageUrl.StartsWith("http") ? Model.ImageUrl : "/" + Model.ImageUrl.TrimStart('/', '\\').Replace('\\', '/')))"
                      class="img-fluid w-100"
                      alt="@Model.Title"
                      style="min-height: 400px; object-fit: cover;">

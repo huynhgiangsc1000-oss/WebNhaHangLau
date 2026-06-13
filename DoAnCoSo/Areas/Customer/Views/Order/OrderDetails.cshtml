@@ -1,4 +1,4 @@
-﻿@model DoAnCoSo.Models.Order
+@model DoAnCoSo.Models.Order
 @{
     ViewData["Title"] = "Chi tiết hóa đơn";
     Layout = "_Layout";
@@ -11,7 +11,12 @@
     decimal appliedPercent = Math.Max(rankPercent, promoPercent);
 
     decimal discountAmount = Model.TotalAmount * (appliedPercent / 100m);
-    decimal finalPrice = Model.TotalAmount - discountAmount;
+    decimal afterDiscount = Model.TotalAmount - discountAmount;
+
+    // Tiền cọc đã thanh toán (từ Booking)
+    decimal depositPaid = Model.Booking?.DepositAmount ?? 0;
+    decimal finalPrice = afterDiscount - depositPaid;
+    if (finalPrice < 0) finalPrice = 0;
 }
 
 @Html.AntiForgeryToken()
@@ -100,6 +105,17 @@
                                 </div>
                             }
 
+                            @if (depositPaid > 0)
+                            {
+                                <div class="d-flex justify-content-between mb-2 fw-bold" style="color: #0d6efd;">
+                                    <span>
+                                        <i class="fas fa-wallet me-1"></i>
+                                        Đã cọc (VNPay):
+                                    </span>
+                                    <span>- @depositPaid.ToString("N0") đ</span>
+                                </div>
+                            }
+
                             <!-- Ô nhập mã giảm giá -->
                             @if (Model.Status != "Completed" && Model.Status != "Paid")
                             {
@@ -116,7 +132,7 @@
                             <hr class="my-4">
 
                             <div class="d-flex justify-content-between mb-4 align-items-center">
-                                <span class="h5 fw-bold mb-0">Tổng cộng:</span>
+                                <span class="h5 fw-bold mb-0">Còn lại:</span>
                                 <span class="h3 text-danger fw-bold mb-0">@finalPrice.ToString("N0") đ</span>
                             </div>
 

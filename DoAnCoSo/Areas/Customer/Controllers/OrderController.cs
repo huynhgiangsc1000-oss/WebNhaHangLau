@@ -35,10 +35,41 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 .Include(o => o.Promotion)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
                 .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
+                .Include(o => o.Booking)
                 .FirstOrDefaultAsync(m => m.OrderId == id);
 
             if (order == null || order.UserId != userId) return NotFound();
             return View(order);
+        }
+
+        // XEM ĐƠN HÀNG ĐANG HOẠT ĐỘNG TẠI BÀN HIỆN TẠI
+        public async Task<IActionResult> CurrentOrder()
+        {
+            var tableIdStr = HttpContext.Session.GetString("TableId") ?? Request.Cookies["SavedTableId"];
+            var userIdStr = _userManager.GetUserId(User);
+
+            if (string.IsNullOrEmpty(tableIdStr) || string.IsNullOrEmpty(userIdStr))
+                return RedirectToAction("Index", "Table");
+
+            int tableId = int.Parse(tableIdStr);
+            int userId = int.Parse(userIdStr);
+
+            // Tìm đơn hàng đang hoạt động tại bàn này của user này
+            var order = await _context.Orders
+                .Include(o => o.OrderDetails).ThenInclude(d => d.Product)
+                .Include(o => o.Table)
+                .Include(o => o.Promotion)
+                .Include(o => o.User).ThenInclude(u => u.Rank)
+                .Include(o => o.Booking)
+                .FirstOrDefaultAsync(o => o.TableId == tableId
+                    && o.UserId == userId
+                    && o.Status != "Completed"
+                    && o.Status != "Cancelled");
+
+            if (order == null)
+                return RedirectToAction("Index", "Menu");
+
+            return View("OrderDetails", order);
         }
 
         // 2. LỊCH SỬ ĐƠN HÀNG
@@ -50,6 +81,8 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
             var orders = await _context.Orders
                 .Include(o => o.Table)
+                .Include(o => o.Promotion)
+                .Include(o => o.User).ThenInclude(u => u.Rank)
                 .Where(o => o.UserId == userId)
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
@@ -64,6 +97,7 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             var order = await _context.Orders
                 .Include(o => o.Promotion)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
+                .Include(o => o.Booking)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null) return NotFound();
@@ -72,7 +106,12 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             decimal rankDiscount = order.User?.Rank?.DiscountPercent ?? 0;
             decimal promoDiscount = order.Promotion?.DiscountValue ?? 0;
             decimal finalDiscountPercent = Math.Max(rankDiscount, promoDiscount);
-            decimal finalAmount = order.TotalAmount * (1 - (finalDiscountPercent / 100m));
+            decimal afterDiscount = order.TotalAmount * (1 - (finalDiscountPercent / 100m));
+
+            // Trừ tiền cọc đã thanh toán
+            decimal depositPaid = order.Booking?.DepositAmount ?? 0;
+            decimal finalAmount = afterDiscount - depositPaid;
+            if (finalAmount < 0) finalAmount = 0;
 
             // Cấu hình VNPAY
             string vnp_Returnurl = _configuration["Vnpay:PaymentBackUrl"];

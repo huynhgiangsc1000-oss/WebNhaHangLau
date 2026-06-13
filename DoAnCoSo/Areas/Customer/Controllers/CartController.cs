@@ -80,8 +80,30 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             var activeBooking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.TableId == tableId && b.UserId == userId && b.Status == "CheckedIn");
 
-            // Lưu ý: Nếu hệ thống của bạn không bắt buộc Booking trước khi ngồi, 
-            // bạn có thể lược bỏ hoặc thay đổi đoạn check activeBooking này.
+            if (activeBooking == null)
+            {
+                // Tìm booking của bàn này đang ở trạng thái CheckedIn mà chưa có UserId
+                var unlinkedBooking = await _context.Bookings
+                    .FirstOrDefaultAsync(b => b.TableId == tableId && b.UserId == null && b.Status == "CheckedIn");
+
+                if (unlinkedBooking != null)
+                {
+                    unlinkedBooking.UserId = userId;
+                    _context.Bookings.Update(unlinkedBooking);
+
+                    // Đồng thời liên kết cả Order tương ứng nếu có
+                    var unlinkedOrder = await _context.Orders
+                        .FirstOrDefaultAsync(o => o.BookingId == unlinkedBooking.BookingId && o.UserId == null);
+                    if (unlinkedOrder != null)
+                    {
+                        unlinkedOrder.UserId = userId;
+                        _context.Orders.Update(unlinkedOrder);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    activeBooking = unlinkedBooking;
+                }
+            }
 
             var product = await _context.Products.FindAsync(productId);
             if (product == null || !product.IsAvailable)
@@ -245,37 +267,110 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                         _context.Tables.Update(table);
                     }
 
-                    // B. Tạo Order
-                    var order = new Order
-                    {
-                        TableId = tableId,
-                        UserId = userId,
-                        OrderDate = DateTime.Now,
-                        TotalAmount = cartItems.Sum(x => x.Quantity * (x.Product?.Price ?? 0)),
-                        Status = "Pending"
-                    };
-                    _context.Orders.Add(order);
-                    await _context.SaveChangesAsync();
+                    // B. Kiểm tra đơn hàng đang hoạt động tại bàn này
+                    var existingOrder = await _context.Orders
+                        .FirstOrDefaultAsync(o => o.TableId == tableId
+                            && o.UserId == userId
+                            && o.Status != "Completed"
+                            && o.Status != "Cancelled");
 
-                    // C. Lưu OrderDetails
-                    foreach (var item in cartItems)
+                    if (existingOrder == null)
                     {
-                        _context.OrderDetails.Add(new OrderDetail
+                        // Tìm đơn hàng đang hoạt động tại bàn này nhưng chưa có UserId
+                        var unlinkedOrder = await _context.Orders
+                            .Include(o => o.Booking)
+                            .FirstOrDefaultAsync(o => o.TableId == tableId
+                                && o.UserId == null
+                                && o.Status != "Completed"
+                                && o.Status != "Cancelled");
+
+                        if (unlinkedOrder != null)
                         {
-                            OrderId = order.OrderId,
-                            ProductId = item.ProductId,
-                            Quantity = item.Quantity,
-                            UnitPrice = item.Product?.Price ?? 0
-                        });
+                            unlinkedOrder.UserId = userId;
+                            _context.Orders.Update(unlinkedOrder);
+
+                            if (unlinkedOrder.Booking != null && unlinkedOrder.Booking.UserId == null)
+                            {
+                                unlinkedOrder.Booking.UserId = userId;
+                                _context.Bookings.Update(unlinkedOrder.Booking);
+                            }
+
+                            await _context.SaveChangesAsync();
+                            existingOrder = unlinkedOrder;
+                        }
                     }
 
-                    // D. Xóa giỏ hàng của bàn này
+                    // Tìm booking đang CheckedIn tại bàn này để liên kết với đơn hàng mới nếu có
+                    var activeBooking = await _context.Bookings
+                        .FirstOrDefaultAsync(b => b.TableId == tableId 
+                            && b.UserId == userId 
+                            && b.Status == "CheckedIn");
+
+                    int finalOrderId;
+
+                    if (existingOrder != null)
+                    {
+                        // GỘP MÓN vào đơn hàng hiện tại
+                        foreach (var item in cartItems)
+                        {
+                            var existingDetail = await _context.OrderDetails
+                                .FirstOrDefaultAsync(od => od.OrderId == existingOrder.OrderId && od.ProductId == item.ProductId);
+
+                            if (existingDetail != null)
+                            {
+                                // Món đã có → tăng số lượng
+                                existingDetail.Quantity += item.Quantity;
+                            }
+                            else
+                            {
+                                // Món mới → thêm vào
+                                _context.OrderDetails.Add(new OrderDetail
+                                {
+                                    OrderId = existingOrder.OrderId,
+                                    ProductId = item.ProductId,
+                                    Quantity = item.Quantity,
+                                    UnitPrice = item.Product?.Price ?? 0
+                                });
+                            }
+                        }
+                        existingOrder.TotalAmount += cartItems.Sum(x => x.Quantity * (x.Product?.Price ?? 0));
+                        finalOrderId = existingOrder.OrderId;
+                    }
+                    else
+                    {
+                        // Tạo đơn hàng MỚI (không có đơn cũ)
+                        var order = new Order
+                        {
+                            TableId = tableId,
+                            UserId = userId,
+                            OrderDate = DateTime.Now,
+                            TotalAmount = cartItems.Sum(x => x.Quantity * (x.Product?.Price ?? 0)),
+                            Status = activeBooking != null ? "Processing" : "Pending",
+                            BookingId = activeBooking?.BookingId
+                        };
+                        _context.Orders.Add(order);
+                        await _context.SaveChangesAsync();
+
+                        foreach (var item in cartItems)
+                        {
+                            _context.OrderDetails.Add(new OrderDetail
+                            {
+                                OrderId = order.OrderId,
+                                ProductId = item.ProductId,
+                                Quantity = item.Quantity,
+                                UnitPrice = item.Product?.Price ?? 0
+                            });
+                        }
+                        finalOrderId = order.OrderId;
+                    }
+
+                    // C. Xóa giỏ hàng của bàn này
                     _context.CartItems.RemoveRange(cartItems);
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    return Json(new { success = true, message = "Đặt món thành công!", orderId = order.OrderId });
+                    return Json(new { success = true, message = "Đặt món thành công!", orderId = finalOrderId });
                 }
                 catch (Exception ex)
                 {

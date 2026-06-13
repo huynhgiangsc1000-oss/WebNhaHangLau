@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DoAnCoSo.Data;
 using DoAnCoSo.Models;
@@ -38,41 +38,32 @@ namespace DoAnCoSo.Areas.Customer.Controllers
         /// Xử lý khi khách quét mã QR hoặc nhấn chọn bàn
         /// </summary>
         [HttpGet]
-
-        [HttpGet]
         public async Task<IActionResult> AccessTable(int id, string checkInCode = null)
         {
             var table = await _context.Tables.FindAsync(id);
             if (table == null) return NotFound();
 
+            var userIdStr = _userManager.GetUserId(User);
+            int? currentUserId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : null;
+
+            // Tìm đơn hàng đang hoạt động tại bàn này
+            var activeOrder = await _context.Orders
+                .Include(o => o.Booking)
+                .FirstOrDefaultAsync(o => o.TableId == id && o.Status != "Completed" && o.Status != "Cancelled");
+
+            // Tìm booking đang CheckedIn tại bàn này
+            var checkedInBooking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.TableId == id && b.Status == "CheckedIn");
+
             if (table.Status == "Occupied")
             {
-                // 1. Kiểm tra xem có đơn hàng nào đang hoạt động (đang ăn) tại bàn này không
-                var hasActiveOrder = await _context.Orders
-                    .AnyAsync(o => o.TableId == id && o.Status != "Completed" && o.Status != "Cancelled");
-
-                // 2. Kiểm tra xem bàn này có phải là bàn vừa được nhân viên check-in cho khách vãng lai không (UserId == null)
-                var isGuestBookingCheckedIn = await _context.Bookings
-                    .AnyAsync(b => b.TableId == id && b.Status == "CheckedIn" && b.UserId == null);
-
-                // 3. LOGIC LỌC TRUY CẬP:
-                // Nếu khách click trên sơ đồ (checkInCode rỗng)
-                if (string.IsNullOrEmpty(checkInCode))
+                // Nếu khách truy cập thông qua đường dẫn link QR từ Email (Có kèm checkInCode)
+                if (!string.IsNullOrEmpty(checkInCode))
                 {
-                    // Nếu bàn đã có hóa đơn đang chạy (khách khác đang ăn) 
-                    // HOẶC bàn này KHÔNG CÓ đơn check-in vãng lai nào chờ sẵn thì mới chặn
-                    if (hasActiveOrder && !isGuestBookingCheckedIn)
-                    {
-                        TempData["Error"] = "Bàn này hiện đang có khách. Vui lòng liên hệ nhân viên!";
-                        return RedirectToAction("Index");
-                    }
-                }
-                else // Nếu khách truy cập thông qua đường dẫn link QR từ Email (Có kèm checkInCode)
-                {
-                    var isCorrectBooking = await _context.Bookings
-                        .AnyAsync(b => b.TableId == id && b.CheckInCode == checkInCode && b.Status == "CheckedIn");
+                    var bookingByCode = await _context.Bookings
+                        .FirstOrDefaultAsync(b => b.TableId == id && b.CheckInCode == checkInCode && (b.Status == "CheckedIn" || b.Status == "Confirmed"));
 
-                    if (!isCorrectBooking)
+                    if (bookingByCode == null)
                     {
                         TempData["Error"] = "Mã xác nhận bàn ăn không hợp lệ hoặc đã hết hạn!";
                         return RedirectToAction("Index");
@@ -80,6 +71,78 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
                     // Lưu mã checkInCode vào Session dự phòng
                     HttpContext.Session.SetString("GuestCheckInCode", checkInCode);
+
+                    // Nếu user đã đăng nhập, liên kết Booking và Order tương ứng với User này
+                    if (currentUserId.HasValue)
+                    {
+                        if (bookingByCode.UserId == null)
+                        {
+                            bookingByCode.UserId = currentUserId.Value;
+                            _context.Bookings.Update(bookingByCode);
+                        }
+
+                        var relatedOrder = await _context.Orders.FirstOrDefaultAsync(o => o.BookingId == bookingByCode.BookingId);
+                        if (relatedOrder != null && relatedOrder.UserId == null)
+                        {
+                            relatedOrder.UserId = currentUserId.Value;
+                            _context.Orders.Update(relatedOrder);
+                        }
+
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                else // Khách click trên sơ đồ hoặc quét mã QR bàn thông thường
+                {
+                    if (activeOrder != null)
+                    {
+                        // Nếu đơn hàng đang chạy thuộc về người khác -> chặn
+                        if (activeOrder.UserId.HasValue)
+                        {
+                            if (currentUserId == null || activeOrder.UserId.Value != currentUserId.Value)
+                            {
+                                TempData["Error"] = "Bàn này hiện đang có khách. Vui lòng liên hệ nhân viên!";
+                                return RedirectToAction("Index");
+                            }
+                        }
+                        else
+                        {
+                            // Nếu đơn hàng chưa có UserId (khách vãng lai/check-in hộ)
+                            if (currentUserId.HasValue)
+                            {
+                                activeOrder.UserId = currentUserId.Value;
+                                _context.Orders.Update(activeOrder);
+
+                                if (activeOrder.Booking != null && activeOrder.Booking.UserId == null)
+                                {
+                                    activeOrder.Booking.UserId = currentUserId.Value;
+                                    _context.Bookings.Update(activeOrder.Booking);
+                                }
+
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                    }
+                    else if (checkedInBooking != null)
+                    {
+                        // Nếu chưa có hóa đơn nhưng có booking đang CheckedIn
+                        if (checkedInBooking.UserId.HasValue)
+                        {
+                            if (currentUserId == null || checkedInBooking.UserId.Value != currentUserId.Value)
+                            {
+                                TempData["Error"] = "Bàn này hiện đang có khách. Vui lòng liên hệ nhân viên!";
+                                return RedirectToAction("Index");
+                            }
+                        }
+                        else
+                        {
+                            if (currentUserId.HasValue)
+                            {
+                                checkedInBooking.UserId = currentUserId.Value;
+                                _context.Bookings.Update(checkedInBooking);
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                    }
                 }
             }
 

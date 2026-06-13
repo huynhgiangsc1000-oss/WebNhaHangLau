@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DoAnCoSo.Data;
 using DoAnCoSo.Models;
@@ -87,6 +87,47 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
             // ĐẢM BẢO LUÔN CÓ GIÁ TRỊ TRUE/FALSE RÕ RÀNG
             ViewBag.HasTable = !string.IsNullOrEmpty(tableIdStr);
+
+            // 6. KIỂM TRA ĐƠN HÀNG ĐANG HOẠT ĐỘNG (để hiển thị nút "Xem đơn hàng" trên Menu)
+            ViewBag.ActiveOrderId = 0;
+            if (user != null && !string.IsNullOrEmpty(tableIdStr))
+            {
+                int tblId = int.Parse(tableIdStr);
+                
+                var activeOrder = await _context.Orders
+                    .FirstOrDefaultAsync(o => o.TableId == tblId
+                        && o.UserId == user.Id
+                        && o.Status != "Completed"
+                        && o.Status != "Cancelled");
+
+                if (activeOrder == null)
+                {
+                    // Tìm kiếm đơn hàng đang chạy tại bàn này chưa có UserId
+                    var unlinkedOrder = await _context.Orders
+                        .Include(o => o.Booking)
+                        .FirstOrDefaultAsync(o => o.TableId == tblId
+                            && o.UserId == null
+                            && o.Status != "Completed"
+                            && o.Status != "Cancelled");
+
+                    if (unlinkedOrder != null)
+                    {
+                        unlinkedOrder.UserId = user.Id;
+                        _context.Orders.Update(unlinkedOrder);
+
+                        if (unlinkedOrder.Booking != null && unlinkedOrder.Booking.UserId == null)
+                        {
+                            unlinkedOrder.Booking.UserId = user.Id;
+                            _context.Bookings.Update(unlinkedOrder.Booking);
+                        }
+
+                        await _context.SaveChangesAsync();
+                        activeOrder = unlinkedOrder;
+                    }
+                }
+
+                ViewBag.ActiveOrderId = activeOrder?.OrderId ?? 0;
+            }
 
             // --- LOGIC HIỂN THỊ DANH MỤC ---
             var categories = await _context.Categories

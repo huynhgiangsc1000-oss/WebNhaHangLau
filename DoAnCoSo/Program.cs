@@ -16,6 +16,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         sqlOptions.EnableRetryOnFailure();
         // Dòng này rất quan trọng nếu SQL của bạn cũ
         sqlOptions.CommandTimeout(60);
+        // Tương thích SQL Server 2014 (không dùng OPENJSON)
+        sqlOptions.UseCompatibilityLevel(120);
     }));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();

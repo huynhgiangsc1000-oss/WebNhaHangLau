@@ -94,6 +94,13 @@ namespace DoAnCoSo.Areas.Admin.Controllers
             var obj = await _context.Promotions.FindAsync(id);
             if (obj == null) return NotFound();
 
+            // Sửa lỗi ràng buộc khóa ngoại khi xóa khuyến mãi đã có trong đơn hàng
+            var referencingOrders = await _context.Orders.Where(o => o.PromotionId == id).ToListAsync();
+            foreach (var order in referencingOrders)
+            {
+                order.PromotionId = null;
+            }
+
             if (!string.IsNullOrEmpty(obj.ImageUrl))
             {
                 DeleteOldImage(obj.ImageUrl);

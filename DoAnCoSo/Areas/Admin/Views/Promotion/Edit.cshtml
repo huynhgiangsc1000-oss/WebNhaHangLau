@@ -72,7 +72,7 @@
                                 <label class="form-label fw-bold">Hình ảnh chiến dịch</label>
                                 <input type="file" name="ImageFile" class="form-control" accept="image/*" onchange="previewImage(this)" />
                                 <div class="mt-2 text-center">
-                                    <img id="imagePreview" src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/Logo.png" : Model.ImageUrl)" class="img-thumbnail" style="max-height: 200px; display: @(string.IsNullOrEmpty(Model.ImageUrl) ? "none" : "inline-block");" />
+                                    <img id="imagePreview" src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/Logo.png" : (Model.ImageUrl.StartsWith("http") ? Model.ImageUrl : "/" + Model.ImageUrl.TrimStart('/', '\\').Replace('\\', '/')))" class="img-thumbnail" style="max-height: 200px; display: @(string.IsNullOrEmpty(Model.ImageUrl) ? "none" : "inline-block");" />
                                 </div>
                             </div>
                         </div>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -54,6 +54,11 @@ namespace DoAnCoSo.Models
         [Display(Name = "Tổng tiền")]
         [Column(TypeName = "decimal(18, 2)")] // Định dạng tiền tệ trong SQL
         public decimal TotalAmount { get; set; }
+
+        // Tiền cọc đã thanh toán (VNPay)
+        [Display(Name = "Tiền cọc")]
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal DepositAmount { get; set; }
 
         // Liên kết với Table
         public int? TableId { get; set; }

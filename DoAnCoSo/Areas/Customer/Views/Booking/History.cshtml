@@ -1,4 +1,4 @@
-﻿@model IEnumerable<DoAnCoSo.Models.Booking>
+@model IEnumerable<DoAnCoSo.Models.Booking>
 @{
     ViewData["Title"] = "Lịch sử đặt bàn";
 }
@@ -18,6 +18,8 @@
                     <option value="">Tất cả trạng thái</option>
                     <option value="Pending">Chờ xác nhận</option>
                     <option value="Confirmed">Đã xác nhận</option>
+                    <option value="CheckedIn">Đang phục vụ</option>
+                    <option value="Completed">Hoàn thành</option>
                     <option value="Cancelled">Đã hủy</option>
                 </select>
             </div>
@@ -48,7 +50,30 @@
                             <td>@item.GuestCount khách</td>
                             <td>@(item.Table?.TableName ?? "Chưa có")</td>
                             <td>
-                                <span class="badge @(item.Status == "Confirmed" ? "bg-success" : "bg-warning")">@item.Status</span>
+                                @if (item.Status == "Confirmed")
+                                {
+                                    <span class="badge bg-success">Đã xác nhận</span>
+                                }
+                                else if (item.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning text-dark">Chờ xác nhận</span>
+                                }
+                                else if (item.Status == "CheckedIn")
+                                {
+                                    <span class="badge bg-info text-dark">Đang phục vụ</span>
+                                }
+                                else if (item.Status == "Completed")
+                                {
+                                    <span class="badge bg-secondary">Hoàn thành</span>
+                                }
+                                else if (item.Status == "Cancelled")
+                                {
+                                    <span class="badge bg-danger">Đã hủy</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-dark">@item.Status</span>
+                                }
                             </td>
                         </tr>
                     }

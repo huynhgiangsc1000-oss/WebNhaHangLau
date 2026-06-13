@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DoAnCoSo.Data;
@@ -267,7 +268,10 @@ namespace DoAnCoSo.Areas.Customer.Controllers
                 
                 if (booking != null)
                 {
-                    // booking.Status = "DepositPaid";
+                    // Lưu tiền cọc đã thanh toán
+                    decimal depositAmount = booking.TotalAmount * 0.3m;
+                    if (depositAmount < 30000) depositAmount = 30000;
+                    booking.DepositAmount = depositAmount;
                     await _context.SaveChangesAsync();
 
                     await SendBookingConfirmationEmail(booking);
@@ -279,6 +283,32 @@ namespace DoAnCoSo.Areas.Customer.Controllers
 
             TempData["Error"] = "Thanh toán thất bại hoặc đã bị hủy.";
             return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize]
+        public async Task<IActionResult> History(string search, string status)
+        {
+            var userIdStr = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userIdStr)) return Challenge();
+            int userId = int.Parse(userIdStr);
+
+            var query = _context.Bookings
+                .Include(b => b.Table)
+                .Where(b => b.UserId == userId)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(b => b.CheckInCode.Contains(search));
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(b => b.Status == status);
+            }
+
+            var bookings = await query.OrderByDescending(b => b.BookingDate).ToListAsync();
+            return View(bookings);
         }
 
         private void LoadViewBagSync()

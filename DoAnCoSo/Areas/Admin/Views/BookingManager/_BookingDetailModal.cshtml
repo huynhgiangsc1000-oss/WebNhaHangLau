@@ -1,0 +1,119 @@
+@model DoAnCoSo.Models.Booking
+
+<div class="modal-header bg-danger text-white border-0">
+    <h5 class="modal-title fw-bold">
+        <i class="bi bi-receipt me-2"></i> CHI TIẾT ĐƠN ĐẶT BÀN #@Model.BookingId
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <h6 class="text-muted text-uppercase small fw-bold">Thông tin bàn & Thời gian</h6>
+            <p class="mb-1"><strong>Bàn:</strong> 
+                @if (Model.Table != null)
+                {
+                    <span class="badge bg-dark">@Model.Table.TableName</span>
+                }
+                else
+                {
+                    <span class="text-muted fst-italic">Chưa gán</span>
+                }
+            </p>
+            <p class="mb-1"><strong>Mã đơn (Check-in):</strong> <span class="badge bg-primary fs-6">@Model.CheckInCode</span></p>
+            <p class="mb-1"><strong>Giờ đặt:</strong> @Model.BookingDate.ToString("HH:mm - dd/MM/yyyy")</p>
+            <p class="mb-1"><strong>Số khách:</strong> @Model.GuestCount người</p>
+            <p class="mb-1">
+                <strong>Trạng thái:</strong>
+                <span class="fw-bold @(Model.Status == "Pending" ? "text-warning" : (Model.Status == "Confirmed" ? "text-success" : "text-info"))">
+                    @switch (Model.Status)
+                    {
+                        case "Pending": <text>Chờ duyệt</text>; break;
+                        case "Confirmed": <text>Đã xác nhận</text>; break;
+                        case "CheckedIn": <text>Đã đến (Check-in)</text>; break;
+                        case "Cancelled": <text>Đã hủy</text>; break;
+                        case "Expired": <text>Quá hạn</text>; break;
+                        default: @Model.Status; break;
+                    }
+                </span>
+            </p>
+        </div>
+
+        <div class="col-md-6 border-start">
+            <h6 class="text-muted text-uppercase small fw-bold">Khách hàng & Ưu đãi</h6>
+            <p class="mb-1"><strong>Họ tên:</strong> @Model.FullName</p>
+            <p class="mb-1"><strong>SĐT:</strong> <span class="text-primary">@Model.PhoneNumber</span></p>
+            @if (!string.IsNullOrEmpty(Model.Email))
+            {
+                <p class="mb-1"><strong>Email:</strong> @Model.Email</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.Note))
+            {
+                <p class="mb-1 text-danger"><strong>Ghi chú:</strong> @Model.Note</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.DiscountCode))
+            {
+                <p class="mb-1"><strong>Mã giảm giá:</strong> <span class="badge bg-success">@Model.DiscountCode</span></p>
+            }
+        </div>
+    </div>
+
+    @if (Model.PreOrderItems != null && Model.PreOrderItems.Any())
+    {
+        <h6 class="text-muted text-uppercase small fw-bold mt-4 mb-2">Món ăn đã đặt trước</h6>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="bg-light text-center small">
+                    <tr>
+                        <th style="width: 40%">Món ăn</th>
+                        <th>Đơn giá</th>
+                        <th>SL</th>
+                        <th>Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.PreOrderItems)
+                    {
+                        var lineTotal = item.Quantity * item.Product.Price;
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="~/images/@item.Product.ImagePath" alt="@item.Product.ProductName" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.src='/images/no-image.png'" />
+                                    <span class="fw-bold small">@item.Product.ProductName</span>
+                                </div>
+                            </td>
+                            <td class="text-center">@item.Product.Price.ToString("N0")đ</td>
+                            <td class="text-center">@item.Quantity</td>
+                            <td class="text-end fw-bold">@lineTotal.ToString("N0")đ</td>
+                        </tr>
+                    }
+                    <tr>
+                        <td colspan="3" class="text-end text-muted small">Tổng món ăn:</td>
+                        <td class="text-end fw-bold">@Model.TotalAmount.ToString("N0")đ</td>
+                    </tr>
+                    @if (Model.TotalAmount > 0)
+                    {
+                        <tr>
+                            <td colspan="3" class="text-end text-muted small">Đã đặt cọc (VNPAY):</td>
+                            <td class="text-end fw-bold text-danger">-@((Model.TotalAmount * 0.3m).ToString("N0"))đ</td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="text-end text-muted fw-bold">CÒN LẠI DỰ KIẾN:</td>
+                            <td class="text-end fw-bold text-primary fs-5">@((Model.TotalAmount * 0.7m).ToString("N0"))đ</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light text-center border mt-3 py-4 text-muted">
+            <i class="bi bi-cart-x display-6 d-block mb-2"></i>
+            Khách hàng chỉ đặt chỗ ngồi, không gọi món trước.
+        </div>
+    }
+</div>
+<div class="modal-footer bg-light">
+    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+</div>

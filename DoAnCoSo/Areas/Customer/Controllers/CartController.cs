@@ -1,4 +1,4 @@
-﻿using DoAnCoSo.Data;
+using DoAnCoSo.Data;
 using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -222,63 +222,67 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Lỗi định danh người dùng!" });
             int userId = int.Parse(userIdStr);
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                // Lấy giỏ hàng chính xác theo User và Bàn
-                var cartItems = await _context.CartItems
-                    .Include(c => c.Product)
-                    .Where(c => c.UserId == userId && c.TableId == tableId)
-                    .ToListAsync();
-
-                if (!cartItems.Any())
-                    return Json(new { success = false, message = "Giỏ hàng trống!" });
-
-                // A. Cập nhật trạng thái bàn
-                var table = await _context.Tables.FindAsync(tableId);
-                if (table != null && table.Status != "Occupied")
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    table.Status = "Occupied";
-                    _context.Tables.Update(table);
-                }
+                    // Lấy giỏ hàng chính xác theo User và Bàn
+                    var cartItems = await _context.CartItems
+                        .Include(c => c.Product)
+                        .Where(c => c.UserId == userId && c.TableId == tableId)
+                        .ToListAsync();
 
-                // B. Tạo Order
-                var order = new Order
-                {
-                    TableId = tableId,
-                    UserId = userId,
-                    OrderDate = DateTime.Now,
-                    TotalAmount = cartItems.Sum(x => x.Quantity * (x.Product?.Price ?? 0)),
-                    Status = "Pending"
-                };
-                _context.Orders.Add(order);
-                await _context.SaveChangesAsync();
+                    if (!cartItems.Any())
+                        return Json(new { success = false, message = "Giỏ hàng trống!" });
 
-                // C. Lưu OrderDetails
-                foreach (var item in cartItems)
-                {
-                    _context.OrderDetails.Add(new OrderDetail
+                    // A. Cập nhật trạng thái bàn
+                    var table = await _context.Tables.FindAsync(tableId);
+                    if (table != null && table.Status != "Occupied")
                     {
-                        OrderId = order.OrderId,
-                        ProductId = item.ProductId,
-                        Quantity = item.Quantity,
-                        UnitPrice = item.Product?.Price ?? 0
-                    });
+                        table.Status = "Occupied";
+                        _context.Tables.Update(table);
+                    }
+
+                    // B. Tạo Order
+                    var order = new Order
+                    {
+                        TableId = tableId,
+                        UserId = userId,
+                        OrderDate = DateTime.Now,
+                        TotalAmount = cartItems.Sum(x => x.Quantity * (x.Product?.Price ?? 0)),
+                        Status = "Pending"
+                    };
+                    _context.Orders.Add(order);
+                    await _context.SaveChangesAsync();
+
+                    // C. Lưu OrderDetails
+                    foreach (var item in cartItems)
+                    {
+                        _context.OrderDetails.Add(new OrderDetail
+                        {
+                            OrderId = order.OrderId,
+                            ProductId = item.ProductId,
+                            Quantity = item.Quantity,
+                            UnitPrice = item.Product?.Price ?? 0
+                        });
+                    }
+
+                    // D. Xóa giỏ hàng của bàn này
+                    _context.CartItems.RemoveRange(cartItems);
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return Json(new { success = true, message = "Đặt món thành công!", orderId = order.OrderId });
                 }
-
-                // D. Xóa giỏ hàng của bàn này
-                _context.CartItems.RemoveRange(cartItems);
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return Json(new { success = true, message = "Đặt món thành công!", orderId = order.OrderId });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
-            }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+                }
+            });
         }
     }
 }

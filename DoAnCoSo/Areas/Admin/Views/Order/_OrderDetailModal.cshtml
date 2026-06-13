@@ -1,4 +1,4 @@
-﻿@model DoAnCoSo.Models.Order
+@model DoAnCoSo.Models.Order
 
 @{
     decimal rankPercent = Model.User?.Rank?.DiscountPercent ?? 0;
@@ -6,7 +6,16 @@
     decimal appliedPercent = Math.Max(rankPercent, promoPercent);
 
     decimal discountAmount = Model.TotalAmount * (appliedPercent / 100m);
-    decimal finalPrice = Model.TotalAmount - discountAmount;
+    
+    decimal depositAmount = 0;
+    if (Model.Booking != null && Model.Booking.CheckInCode != null && Model.Booking.CheckInCode.StartsWith("NH-"))
+    {
+        depositAmount = Model.Booking.TotalAmount * 0.3m;
+        if (depositAmount > 0 && depositAmount < 30000) depositAmount = 30000;
+    }
+    
+    decimal finalPrice = Model.TotalAmount - discountAmount - depositAmount;
+    if (finalPrice < 0) finalPrice = 0;
     bool isAwaiting = Model.Status == "AwaitingPayment";
 }
 
@@ -65,6 +74,12 @@
                             <p class="mb-1"><strong>SĐT:</strong> <span class="text-primary">@Model.User.PhoneNumber</span></p>
                             <p class="mb-1"><strong>Hạng:</strong> <span class="text-danger fw-bold">@Model.User.Rank?.RankName (@rankPercent%)</span></p>
                         }
+                        else if (Model.Booking != null)
+                        {
+                            <p class="mb-1"><strong>Họ tên:</strong> @Model.Booking.FullName</p>
+                            <p class="mb-1"><strong>SĐT:</strong> <span class="text-primary">@Model.Booking.PhoneNumber</span></p>
+                            <p class="mb-1"><strong>Hạng:</strong> <span class="text-danger fw-bold">Khách đặt bàn vãng lai</span></p>
+                        }
                         else
                         {
                             <p class="text-muted italic">Khách vãng lai</p>
@@ -111,6 +126,13 @@
                                 <tr class="text-end text-success">
                                     <td colspan="3">Giảm giá (@appliedPercent%):</td>
                                     <td class="fw-bold">-@discountAmount.ToString("N0")đ</td>
+                                </tr>
+                            }
+                            @if (depositAmount > 0)
+                            {
+                                <tr class="text-end text-primary">
+                                    <td colspan="3">Đã đặt cọc (VNPAY):</td>
+                                    <td class="fw-bold">-@depositAmount.ToString("N0")đ</td>
                                 </tr>
                             }
                             <tr class="text-end">

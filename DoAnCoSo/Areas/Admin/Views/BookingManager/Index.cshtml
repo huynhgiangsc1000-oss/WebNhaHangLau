@@ -1,4 +1,4 @@
-﻿@model IEnumerable<DoAnCoSo.Models.Booking>
+@model IEnumerable<DoAnCoSo.Models.Booking>
 
 @{
     ViewData["Title"] = "Quản lý đặt bàn";
@@ -224,9 +224,13 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm shadow-sm">
+                                        <button class="btn btn-light border text-dark fw-bold px-3" onclick="viewDetails(@item.BookingId)" title="Xem chi tiết">
+                                            <i class="bi bi-eye"></i> Xem
+                                        </button>
+                                        
                                         @if (item.Status == "Pending")
                                         {
-                                            <button class="btn btn-primary fw-bold px-3" onclick="showAssignModal(@item.BookingId, @item.GuestCount)" title="Duyệt yêu cầu">
+                                            <button class="btn btn-primary fw-bold px-3" onclick="showAssignModal(@item.BookingId, @item.GuestCount, @(item.TableId?.ToString() ?? "null"), '@(item.Table?.TableName ?? "")')" title="Duyệt yêu cầu">
                                                 <i class="bi bi-check-lg me-1"></i> Duyệt
                                             </button>
                                         }
@@ -271,10 +275,16 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="hdnBookingId" />
-                <div class="alert alert-info py-2 small">
+                <input type="hidden" id="hdnTableId" />
+                
+                <div class="alert alert-info py-2 small" id="lblGuestInfo">
                     Yêu cầu đặt bàn cho <strong id="lblGuestCount">0</strong> khách. Vui lòng chọn vị trí bàn thích hợp.
                 </div>
-                <div class="mb-3">
+                
+                <div class="alert alert-success py-2 small" id="preSelectedTableInfo" style="display: none;">
+                </div>
+
+                <div class="mb-3" id="selectTableContainer">
                     <label class="form-label fw-bold small text-secondary">Chọn bàn trống:</label>
                     <select id="selectTable" class="form-select">
                         <option value="">-- Chọn bàn trống --</option>
@@ -291,6 +301,20 @@
             <div class="modal-footer bg-light">
                 <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
                 <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 fw-bold" onclick="submitAssignTable()">Xác nhận duyệt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal hiển thị chi tiết Đơn đặt bàn -->
+<div class="modal fade" id="modalBookingDetail" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow-lg border-0" id="bookingDetailContent">
+            <!-- Nội dung Load bằng AJAX -->
+            <div class="text-center p-5">
+                <div class="spinner-border text-danger" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
             </div>
         </div>
     </div>
@@ -313,10 +337,22 @@
         });
 
         // 2. HIỂN THỊ MODAL GÁN BÀN KHI BẤM NÚT "DUYỆT"
-        function showAssignModal(bookingId, guestCount) {
+        function showAssignModal(bookingId, guestCount, tableId, tableName) {
             $('#hdnBookingId').val(bookingId);
             $('#lblGuestCount').text(guestCount);
-            $('#selectTable').val(''); // Reset lại lựa chọn bàn cũ trước đó
+            
+            if (tableId) {
+                $('#selectTableContainer').hide();
+                $('#lblGuestInfo').hide();
+                $('#preSelectedTableInfo').html('<i class="bi bi-check-circle-fill me-1"></i> Khách đã chọn: <strong class="fs-6">' + tableName + '</strong>. Bạn có chắc chắn muốn xác nhận duyệt?').show();
+                $('#hdnTableId').val(tableId);
+            } else {
+                $('#selectTableContainer').show();
+                $('#lblGuestInfo').show();
+                $('#preSelectedTableInfo').hide();
+                $('#selectTable').val(''); 
+                $('#hdnTableId').val('');
+            }
 
             var myModal = new bootstrap.Modal(document.getElementById('modalAssign'));
             myModal.show();
@@ -325,7 +361,7 @@
         // 3. GỬI AJAX XÁC NHẬN GÁN BÀN LÊN SERVER
         function submitAssignTable() {
             var bookingId = $('#hdnBookingId').val();
-            var tableId = $('#selectTable').val();
+            var tableId = $('#hdnTableId').val() || $('#selectTable').val();
 
             if (!tableId) {
                 alert("Vui lòng lựa chọn một bàn trống trước khi duyệt!");
@@ -406,6 +442,26 @@
                     }
                 });
             }
+        }
+
+        // 6. MỞ MODAL XEM CHI TIẾT
+        function viewDetails(id) {
+            var myModal = new bootstrap.Modal(document.getElementById('modalBookingDetail'));
+            myModal.show();
+            
+            // Xóa nội dung cũ hiển thị loading
+            $('#bookingDetailContent').html('<div class="text-center p-5"><div class="spinner-border text-danger" role="status"></div></div>');
+
+            $.ajax({
+                url: '@Url.Action("GetDetails", "BookingManager")/' + id,
+                type: 'GET',
+                success: function (res) {
+                    $('#bookingDetailContent').html(res);
+                },
+                error: function () {
+                    $('#bookingDetailContent').html('<div class="alert alert-danger m-3">Không thể tải thông tin đơn đặt bàn.</div>');
+                }
+            });
         }
     </script>
 }

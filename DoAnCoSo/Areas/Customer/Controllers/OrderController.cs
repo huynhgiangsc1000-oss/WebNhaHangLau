@@ -1,4 +1,4 @@
-﻿using DoAnCoSo.Data;
+using DoAnCoSo.Data;
 using DoAnCoSo.Models.Libraries;
 using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -187,41 +187,45 @@ namespace DoAnCoSo.Areas.Customer.Controllers
             decimal finalDiscountPercent = Math.Max(rankDiscountPercent, promoDiscountPercent);
             decimal discountValue = order.TotalAmount * (finalDiscountPercent / 100m);
 
-            // 3. Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu (Data Integrity)
-            using (var transaction = await _context.Database.BeginTransactionAsync())
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                try
+                // 3. Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu (Data Integrity)
+                using (var transaction = await _context.Database.BeginTransactionAsync())
                 {
-                    // Cập nhật thông tin đơn hàng
-                    order.Status = "Completed";
-                    order.PaymentMethod = paymentMethod;
-                    order.DiscountAmount = discountValue; // Lưu số tiền được giảm vào DB
-
-                    // Cập nhật điểm thưởng
-                    if (order.User != null)
+                    try
                     {
-                        order.User.Points += (int)(order.TotalAmount / 10000);
-                    }
+                        // Cập nhật thông tin đơn hàng
+                        order.Status = "Completed";
+                        order.PaymentMethod = paymentMethod;
+                        order.DiscountAmount = discountValue; // Lưu số tiền được giảm vào DB
 
-                    // Giải phóng bàn: Chuyển trạng thái bàn về "Empty" (Trống)
-                    if (order.Table != null)
+                        // Cập nhật điểm thưởng
+                        if (order.User != null)
+                        {
+                            order.User.Points += (int)(order.TotalAmount / 10000);
+                        }
+
+                        // Giải phóng bàn: Chuyển trạng thái bàn về "Empty" (Trống)
+                        if (order.Table != null)
+                        {
+                            order.Table.Status = "Empty";
+                        }
+
+                        // Lưu tất cả thay đổi
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        return true;
+                    }
+                    catch (Exception)
                     {
-                        order.Table.Status = "Empty";
+                        // Nếu xảy ra lỗi, hủy bỏ tất cả thao tác trong transaction
+                        await transaction.RollbackAsync();
+                        return false;
                     }
-
-                    // Lưu tất cả thay đổi
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return true;
                 }
-                catch (Exception)
-                {
-                    // Nếu xảy ra lỗi, hủy bỏ tất cả thao tác trong transaction
-                    await transaction.RollbackAsync();
-                    return false;
-                }
-            }
+            });
         }
         // 7. TRANG THÔNG BÁO THÀNH CÔNG
         public async Task<IActionResult> PaymentSuccess(int id)

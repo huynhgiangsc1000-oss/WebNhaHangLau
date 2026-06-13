@@ -1,4 +1,4 @@
-﻿using DoAnCoSo.Data;
+using DoAnCoSo.Data;
 using DoAnCoSo.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -44,7 +44,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
             {
                 // Chỉ lọc trạng thái khi KHÔNG tìm kiếm mã đơn
                 if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
-                else query = query.Where(o => o.Status != "Completed" && o.Status != "Cancelled");
+                else query = query.Where(o => o.Status != "Completed" && o.Status != "Cancelled" && o.Status != "PreOrder");
             }
 
             // Lọc ngày tháng
@@ -52,6 +52,16 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 query = query.Where(o => o.OrderDate.Date >= start.Date);
             if (DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime end))
                 query = query.Where(o => o.OrderDate.Date <= end.Date);
+
+            var countQuery = _context.Orders.AsQueryable();
+            if (DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime startCount))
+                countQuery = countQuery.Where(o => o.OrderDate.Date >= startCount.Date);
+            if (DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, DateTimeStyles.None, out DateTime endCount))
+                countQuery = countQuery.Where(o => o.OrderDate.Date <= endCount.Date);
+
+            ViewBag.CountPending = await countQuery.CountAsync(o => o.Status == "Pending");
+            ViewBag.CountProcessing = await countQuery.CountAsync(o => o.Status == "Processing");
+            ViewBag.CountAwaiting = await countQuery.CountAsync(o => o.Status == "AwaitingPayment");
 
             var totalOrders = await query.CountAsync();
             var pagedOrders = await query.OrderByDescending(o => o.OrderDate)
@@ -75,63 +85,67 @@ namespace DoAnCoSo.Areas.Admin.Controllers
         
         public async Task<IActionResult> UpdateStatus(int id, string Status)
         {
-            using (var transaction = await _context.Database.BeginTransactionAsync())
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                try
+                using (var transaction = await _context.Database.BeginTransactionAsync())
                 {
-                    // Thêm Include cả Promotion và User.Rank để có đủ dữ liệu tính toán
-                    var order = await _context.Orders
-                        .Include(o => o.Table)
-                        .Include(o => o.User).ThenInclude(u => u.Rank)
-                        .Include(o => o.Promotion)
-                        .FirstOrDefaultAsync(o => o.OrderId == id);
-
-                    if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng" });
-
-                    // BIỆN PHÁP BẢO VỆ CONTROLLER... (Giữ nguyên code chặn trạng thái cũ)
-
-                    // NẾU LÀ HOÀN TẤT ĐƠN HÀNG
-                    if (Status == "Completed")
+                    try
                     {
-                        // 1. TÍNH TOÁN LẠI GIẢM GIÁ (Giống như logic ở Customer Controller)
-                        decimal rankDiscountPercent = order.User?.Rank?.DiscountPercent ?? 0;
-                        decimal promoDiscountPercent = (order.Promotion != null) ? order.Promotion.DiscountValue : 0;
-                        decimal finalDiscountPercent = Math.Max(rankDiscountPercent, promoDiscountPercent);
+                        // Thêm Include cả Promotion và User.Rank để có đủ dữ liệu tính toán
+                        var order = await _context.Orders
+                            .Include(o => o.Table)
+                            .Include(o => o.User).ThenInclude(u => u.Rank)
+                            .Include(o => o.Promotion)
+                            .FirstOrDefaultAsync(o => o.OrderId == id);
 
-                        order.DiscountAmount = order.TotalAmount * (finalDiscountPercent / 100m); // LƯU VÀO DB
-                        order.PaymentMethod = order.PaymentMethod ?? "Cash"; // Nếu chưa có thì mặc định là Cash
+                        if (order == null) return Json(new { success = false, message = "Không tìm thấy đơn hàng" });
 
-                        // 2. Giải phóng bàn
-                        if (order.Table != null) order.Table.Status = "Empty";
+                        // BIỆN PHÁP BẢO VỆ CONTROLLER... (Giữ nguyên code chặn trạng thái cũ)
 
-                        // 3. Cộng điểm
-                        if (order.User != null)
+                        // NẾU LÀ HOÀN TẤT ĐƠN HÀNG
+                        if (Status == "Completed")
                         {
-                            order.User.Points += (int)(order.TotalAmount / 10000);
-                            await UpdateUserRank(order.User);
+                            // 1. TÍNH TOÁN LẠI GIẢM GIÁ (Giống như logic ở Customer Controller)
+                            decimal rankDiscountPercent = order.User?.Rank?.DiscountPercent ?? 0;
+                            decimal promoDiscountPercent = (order.Promotion != null) ? order.Promotion.DiscountValue : 0;
+                            decimal finalDiscountPercent = Math.Max(rankDiscountPercent, promoDiscountPercent);
+
+                            order.DiscountAmount = order.TotalAmount * (finalDiscountPercent / 100m); // LƯU VÀO DB
+                            order.PaymentMethod = order.PaymentMethod ?? "Cash"; // Nếu chưa có thì mặc định là Cash
+
+                            // 2. Giải phóng bàn
+                            if (order.Table != null) order.Table.Status = "Empty";
+
+                            // 3. Cộng điểm
+                            if (order.User != null)
+                            {
+                                order.User.Points += (int)(order.TotalAmount / 10000);
+                                await UpdateUserRank(order.User);
+                            }
+
+                            // 4. Đóng phiên Booking
+                            var activeBooking = await _context.Bookings
+                                .FirstOrDefaultAsync(b => b.TableId == order.TableId && b.UserId == order.UserId && b.Status == "CheckedIn");
+                            if (activeBooking != null) activeBooking.Status = "Completed";
+                        }
+                        else if (Status == "Cancelled")
+                        {
+                            if (order.Table != null) order.Table.Status = "Empty";
                         }
 
-                        // 4. Đóng phiên Booking
-                        var activeBooking = await _context.Bookings
-                            .FirstOrDefaultAsync(b => b.TableId == order.TableId && b.UserId == order.UserId && b.Status == "CheckedIn");
-                        if (activeBooking != null) activeBooking.Status = "Completed";
+                        order.Status = Status;
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        return Json(new { success = true });
                     }
-                    else if (Status == "Cancelled")
+                    catch (Exception ex)
                     {
-                        if (order.Table != null) order.Table.Status = "Empty";
+                        await transaction.RollbackAsync();
+                        return Json(new { success = false, message = ex.Message });
                     }
-
-                    order.Status = Status;
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return Json(new { success = true });
                 }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    return Json(new { success = false, message = ex.Message });
-                }
-            }
+            });
         }
 
         private async Task UpdateUserRank(User user)
@@ -154,6 +168,7 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 .Include(o => o.Table)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
                 .Include(o => o.Promotion)
+                .Include(o => o.Booking)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
             return PartialView("_OrderDetailModal", order);
         }
@@ -164,8 +179,9 @@ namespace DoAnCoSo.Areas.Admin.Controllers
                 .Include(o => o.Table)
                 .Include(o => o.Promotion)
                 .Include(o => o.User).ThenInclude(u => u.Rank)
-                .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
-                .FirstOrDefaultAsync(m => m.OrderId == id);
+                .Include(o => o.OrderDetails).ThenInclude(d => d.Product)
+                .Include(o => o.Booking)
+                .FirstOrDefaultAsync(o => o.OrderId == id);
             return View(order);
         }
         [HttpGet]

@@ -1,4 +1,4 @@
-﻿@using DoAnCoSo.Models
+@using DoAnCoSo.Models
 @* Sửa lại kiểu dữ liệu nhận từ Controller: Nhận danh sách các nhóm đã Group theo Ngày *@
 @model IEnumerable<IGrouping<DateTime, Order>>
 @Html.AntiForgeryToken()
@@ -171,19 +171,19 @@
             <li class="nav-item">
                 <a class="nav-link @(currentStatus == "Pending" ? "active" : "") d-flex align-items-center gap-2" href="#" onclick="switchTab('Pending')">
                     Chờ duyệt
-                    <span class="badge bg-warning text-dark px-2 rounded-pill status-count-Pending" style="display:none;">0</span>
+                    @if (ViewBag.CountPending > 0) { <span class="badge bg-warning text-dark px-2 rounded-pill">@ViewBag.CountPending</span> }
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link @(currentStatus == "Processing" ? "active" : "") d-flex align-items-center gap-2" href="#" onclick="switchTab('Processing')">
                     Đang phục vụ
-                    <span class="badge bg-info text-white px-2 rounded-pill status-count-Processing" style="display:none;">0</span>
+                    @if (ViewBag.CountProcessing > 0) { <span class="badge bg-info text-white px-2 rounded-pill">@ViewBag.CountProcessing</span> }
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link @(currentStatus == "AwaitingPayment" ? "active" : "") d-flex align-items-center gap-2" href="#" onclick="switchTab('AwaitingPayment')">
                     Chờ tính tiền
-                    <span class="badge bg-danger text-white px-2 rounded-pill status-count-AwaitingPayment animate-pulse-slow" style="display:none;">0</span>
+                    @if (ViewBag.CountAwaiting > 0) { <span class="badge bg-danger text-white px-2 rounded-pill animate-pulse-slow">@ViewBag.CountAwaiting</span> }
                 </a>
             </li>
             <li class="nav-item">
@@ -450,24 +450,7 @@
                 e.preventDefault();
                 submitModalStatusUpdate();
             });
-
-            updateNotificationBadges();
         });
-
-        function updateNotificationBadges() {
-            let pendingCount = $('.order-status-badge:contains("Chờ duyệt")').length;
-            let processingCount = $('.order-status-badge:contains("Đang phục vụ")').length;
-            let awaitingCount = $('.order-status-badge:contains("Tính tiền")').length;
-
-            $('.status-count-Pending').text(pendingCount).toggle(pendingCount > 0);
-            $('.status-count-Processing').text(processingCount).toggle(processingCount > 0);
-
-            if (awaitingCount > 0) {
-                $('.status-count-AwaitingPayment').text(awaitingCount).addClass('bg-danger').removeClass('bg-primary').show();
-            } else {
-                $('.status-count-AwaitingPayment').hide();
-            }
-        }
 
         function switchTab(statusValue) {
             var form = $('#searchForm');
